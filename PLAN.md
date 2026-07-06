@@ -7,6 +7,7 @@ A 3D first-person Backrooms exploration game built on Next.js, with infinite pro
 ## 1. Vision & Scope
 
 ### MVP (this phase)
+
 - 3D first-person exploration: **arrow keys** (+ WASD as bonus) to move, **mouse** to look (Pointer Lock).
 - **Infinite, random map generation** — chunk-based, deterministic per seed + level.
 - **1000 selectable levels (0–999)**, each with distinct characteristics derived from its number.
@@ -18,6 +19,7 @@ A 3D first-person Backrooms exploration game built on Next.js, with infinite pro
 - **No enemies** — pure exploration.
 
 ### Explicit non-goals for MVP (but architected for)
+
 - Enemies / AI (Phase 2).
 - Collectible items: adrenaline pills, bandage, flashlight, etc. (Phase 2).
 - Real multiplayer (menu shows the option as disabled/"soon").
@@ -26,19 +28,19 @@ A 3D first-person Backrooms exploration game built on Next.js, with infinite pro
 
 ## 2. Tech Stack
 
-| Concern | Choice | Why |
-|---|---|---|
-| Framework | **Next.js 16 (App Router) + React 19.2 + TypeScript 6 (strict)** | Latest stable stack; static-first game shell |
-| 3D engine | **three.js (0.185+) via @react-three/fiber 9** | Declarative, componentized 3D that fits React best practices |
-| 3D helpers | **@react-three/drei 10** | PointerLockControls, instancing helpers, performance utilities |
-| State | **zustand 5** | Minimal, decoupled stores; selector-based subscriptions avoid re-render storms |
-| Audio | **Web Audio API behind an `AudioEngine` interface** | Procedural soundtrack now; mp3/ogg later without touching call sites |
-| Styling | **CSS Modules (or Tailwind v4)** | Scoped, zero-runtime styling for menus/HUD |
-| Unit tests | **Vitest 4 + React Testing Library** | Fast, ESM-native |
-| E2E tests | **Playwright 1.6x** | Menu flows, canvas boot smoke test |
-| Lint/format | **ESLint 10 (flat config) + Prettier** | Enterprise hygiene |
-| Package manager | **Yarn (Berry)** | Deterministic installs (`--immutable` in CI), built-in `yarn npm audit` |
-| CI | **GitHub Actions (`ci.yaml`)** | Lint → typecheck → test → build → audit |
+| Concern         | Choice                                                           | Why                                                                            |
+| --------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Framework       | **Next.js 16 (App Router) + React 19.2 + TypeScript 6 (strict)** | Latest stable stack; static-first game shell                                   |
+| 3D engine       | **three.js (0.185+) via @react-three/fiber 9**                   | Declarative, componentized 3D that fits React best practices                   |
+| 3D helpers      | **@react-three/drei 10**                                         | PointerLockControls, instancing helpers, performance utilities                 |
+| State           | **zustand 5**                                                    | Minimal, decoupled stores; selector-based subscriptions avoid re-render storms |
+| Audio           | **Web Audio API behind an `AudioEngine` interface**              | Procedural soundtrack now; mp3/ogg later without touching call sites           |
+| Styling         | **CSS Modules (or Tailwind v4)**                                 | Scoped, zero-runtime styling for menus/HUD                                     |
+| Unit tests      | **Vitest 4 + React Testing Library**                             | Fast, ESM-native                                                               |
+| E2E tests       | **Playwright 1.6x**                                              | Menu flows, canvas boot smoke test                                             |
+| Lint/format     | **ESLint 10 (flat config) + Prettier**                           | Enterprise hygiene                                                             |
+| Package manager | **Yarn (Berry)**                                                 | Deterministic installs (`--immutable` in CI), built-in `yarn npm audit`        |
+| CI              | **GitHub Actions (`ci.yaml`)**                                   | Lint → typecheck → test → build → audit                                        |
 
 Rendering note: the game scene is fully client-side (`"use client"` + dynamic import, `ssr: false`). Next.js serves the shell, menus, and routing; the canvas mounts only on the game route to keep SSR/hydration clean and avoid WebGL-on-server issues.
 
@@ -90,19 +92,19 @@ src/
 ### 3.2 Design principles applied
 
 - **SOLID**
-  - *SRP*: generation, movement, collision, audio, stats are separate pure modules; React components only render.
-  - *OCP*: `LevelProfile` + trait tables mean new level styles are data additions, not code edits; new audio backends implement `AudioEngine`.
-  - *LSP/ISP*: narrow interfaces (`AudioEngine`, `Item`, `Entity`, `ChunkGenerator`) — consumers depend on the minimal contract.
-  - *DIP*: scene components receive engine services via a lightweight context/provider, never instantiate concretions.
+  - _SRP_: generation, movement, collision, audio, stats are separate pure modules; React components only render.
+  - _OCP_: `LevelProfile` + trait tables mean new level styles are data additions, not code edits; new audio backends implement `AudioEngine`.
+  - _LSP/ISP_: narrow interfaces (`AudioEngine`, `Item`, `Entity`, `ChunkGenerator`) — consumers depend on the minimal contract.
+  - _DIP_: scene components receive engine services via a lightweight context/provider, never instantiate concretions.
 - **DRY**: single source of truth in `config/` for all tunables; difficulty table drives stamina/health rules everywhere.
 - **KISS**: grid-based chunks + AABB collision (no physics engine needed for MVP); add complexity only when a phase demands it.
 - **Patterns (best fit, not pattern soup)**
-  - *Strategy* — level generation traits & audio ambience per level profile.
-  - *Factory* — `createLevelProfile(levelNumber)`, `createChunk(seed, x, z, profile)`.
-  - *Object Pool / Flyweight* — reused wall/floor/ceiling geometry + materials; `InstancedMesh` for walls and pillars.
-  - *Observer* — zustand subscriptions; game loop publishes, HUD subscribes selectively.
-  - *State* — explicit game phase machine (`splash → menu → loading → playing ⇄ paused → menu`).
-  - *Registry* — item/entity registries so Phase 2 plugs in without core changes.
+  - _Strategy_ — level generation traits & audio ambience per level profile.
+  - _Factory_ — `createLevelProfile(levelNumber)`, `createChunk(seed, x, z, profile)`.
+  - _Object Pool / Flyweight_ — reused wall/floor/ceiling geometry + materials; `InstancedMesh` for walls and pillars.
+  - _Observer_ — zustand subscriptions; game loop publishes, HUD subscribes selectively.
+  - _State_ — explicit game phase machine (`splash → menu → loading → playing ⇄ paused → menu`).
+  - _Registry_ — item/entity registries so Phase 2 plugs in without core changes.
 
 ### 3.3 Memory & performance budget
 
@@ -118,43 +120,50 @@ src/
 ## 4. Procedural Infinite Generation
 
 ### 4.1 Determinism
+
 - World seed = `hash(sessionSeed, levelNumber)`; chunk seed = `hash(worldSeed, chunkX, chunkZ)`.
 - Same seed + level ⇒ identical world. Enables testing, sharing seeds, and later multiplayer sync.
 
 ### 4.2 Chunk algorithm
+
 - Grid chunks (e.g. 16×16 cells, cell = 4m). Each cell: wall / open / pillar.
 - Per-chunk generation mixes weighted patterns from the level profile: open plains with pillar grids, corridor mazes (recursive-division), room clusters, long hallways.
 - **Border contract**: openings on chunk edges are computed from a hash of the shared edge coordinates — neighboring chunks agree without communicating (no seams, no cross-chunk dependency). This is what makes generation truly infinite and parallelizable.
 - Guaranteed connectivity: each chunk keeps at least one open path between each pair of open edges (flood-fill fix-up pass).
 
 ### 4.3 Level profiles (0–999)
+
 `createLevelProfile(n)` deterministically derives characteristics from the level number:
 
 - **Canonical levels hand-tuned** where lore expects it: Level 0 (classic yellow wallpaper, damp carpet, hum), Level 1 (concrete warehouse/parking), Level 2 (dark maintenance corridors + pipes), Level 3 (electrical station brutalism), Level 4 (abandoned office), Level 5 (hotel), Level 6 (lights out)… defined in a data table.
 - **All other levels** blend trait axes seeded by `n`: palette (sickly yellows, mono grays, dreamcore pastels, weirdcore saturation), geometry style (mono grid, maze, cathedral-scale brutalism, cramped crawl), light mood (buzzing fluorescent, sparse flicker, near-dark, unnatural glow), decay (pristine liminal → water damage, stains, exposed rebar), ceiling height, fog density/color, ambience track.
 - Aesthetic pillars mapped to concrete render features:
-  - *Monotonous geometry* → repeated cell patterns, instanced pillars, identical doorframes.
-  - *Retro/dated finishes* → procedural wallpaper/carpet/ceiling-tile textures, beige/brown palettes.
-  - *Lighting & atmosphere* → fluorescent panel lights with hum + random flicker, fog, subtle film grain/vignette post-processing.
-  - *Liminal/dreamcore/weirdcore* → over-scaled empty rooms, doors to nowhere, off-palette accent levels, slightly wrong proportions.
-  - *Brutalism & decay* → raw concrete materials, monolithic pillars, stain/crack decals on higher-decay levels.
+  - _Monotonous geometry_ → repeated cell patterns, instanced pillars, identical doorframes.
+  - _Retro/dated finishes_ → procedural wallpaper/carpet/ceiling-tile textures, beige/brown palettes.
+  - _Lighting & atmosphere_ → fluorescent panel lights with hum + random flicker, fog, subtle film grain/vignette post-processing.
+  - _Liminal/dreamcore/weirdcore_ → over-scaled empty rooms, doors to nowhere, off-palette accent levels, slightly wrong proportions.
+  - _Brutalism & decay_ → raw concrete materials, monolithic pillars, stain/crack decals on higher-decay levels.
 
 ---
 
 ## 5. Gameplay Systems
 
 ### 5.1 Player controller
+
 - Pointer Lock mouse-look (yaw on rig, pitch on camera, clamped).
 - Arrow keys **and** WASD; Shift = sprint; Esc = pause (releases pointer lock).
 - Capsule-vs-grid AABB collision with wall sliding; fixed timestep.
 
 ### 5.2 Health & stamina
+
 - Stamina drains while sprinting, regenerates when walking/idle (delay before regen); at 0 stamina, sprint locks until a threshold refills.
 - Health: full and static in MVP peaceful mode; the pipeline (`applyDamage`, `heal`, regen rules) is implemented and difficulty-scaled so Phase 2 enemies/items plug straight in.
 - Difficulty table (peaceful/easy/medium/hard) scales: stamina drain/regen, future damage taken, future item scarcity. Peaceful = no damage sources ever.
 
 ### 5.3 Game flow state machine
+
 `splash → menu → loading (level gen + audio warmup) → playing ⇄ paused → menu`
+
 - Implemented as an explicit typed state machine in `gameStore` — illegal transitions impossible, trivially unit-testable.
 
 ---
@@ -171,7 +180,7 @@ src/
 ## 7. UI/UX
 
 1. **Splash screen** — title "Backrooms - Infinite Nightmares", flickering fluorescent title treatment, "press any key" (also satisfies the audio-gesture requirement).
-2. **Main menu** — Start, Settings, Credits. Settings: level selector (0–999, numeric input + prev/next, shows level name/traits preview), difficulty, music toggle+volume, SFX toggle+volume, mode (Single Player / Multiplayer *(soon — disabled)*). Persisted via zustand `persist`.
+2. **Main menu** — Start, Settings, Credits. Settings: level selector (0–999, numeric input + prev/next, shows level name/traits preview), difficulty, music toggle+volume, SFX toggle+volume, mode (Single Player / Multiplayer _(soon — disabled)_). Persisted via zustand `persist`.
 3. **Loading screen** — brief, seeds generation + warms audio; lore-flavored tips.
 4. **In-game HUD** — health bar, stamina bar (fades when full), level badge, center dot crosshair. Reserved slot layout for Phase 2 hotbar/inventory.
 5. **Pause menu** — Esc: Resume / Settings (audio + difficulty subset) / Quit to menu. Game loop and audio fully suspended while paused.
@@ -190,6 +199,7 @@ src/
 ## 9. Quality: Tests, Security, CI
 
 ### 9.1 Tests
+
 - **Unit (Vitest)** — the pure `engine/` layer is the priority:
   - RNG determinism (same seed ⇒ same sequence; distribution sanity).
   - Chunk generation: determinism, border contract (adjacent chunks agree on edges), connectivity guarantee.
@@ -202,13 +212,16 @@ src/
 - Coverage gate on `engine/` and `state/` (e.g. 90%); UI measured but not gated.
 
 ### 9.2 Security / vulnerability checks
+
 - `yarn npm audit` (fail CI on high/critical) + **Dependabot** config for weekly dependency PRs.
 - CodeQL workflow (free for public repos) for static analysis.
 - Strict TypeScript, no `eval`/`dangerouslySetInnerHTML`. GitHub Pages can't set custom HTTP headers, so CSP ships as a `<meta http-equiv="Content-Security-Policy">` tag (tuned for WebGL/workers/audio worklets) in the root layout.
 - Settings persistence validates/sanitizes anything read back from localStorage (zod or hand-rolled guards).
 
 ### 9.3 CI/CD — `.github/workflows/ci.yaml`
+
 Jobs (yarn cache enabled via `actions/setup-node`, `yarn install --immutable`):
+
 1. **lint** — ESLint + Prettier check + `tsc --noEmit`.
 2. **test** — Vitest with coverage, upload report artifact.
 3. **build** — `next build` (static export → `out/`), upload `out/` as the Pages artifact (depends on lint+test).
@@ -222,7 +235,7 @@ Triggers: push to `main`, all PRs. Concurrency group cancels superseded runs (de
 
 ## 10. Implementation Order (milestones)
 
-1. **M0 — Scaffold**: `create-next-app --use-yarn` (TS, App Router, ESLint), static export config (`output: 'export'`, `basePath`), Prettier, Vitest, Playwright, CI `ci.yaml` green on the empty app **and deployed to GitHub Pages**. *(CI + live deploy exist from day one.)*
+1. **M0 — Scaffold**: `create-next-app --use-yarn` (TS, App Router, ESLint), static export config (`output: 'export'`, `basePath`), Prettier, Vitest, Playwright, CI `ci.yaml` green on the empty app **and deployed to GitHub Pages**. _(CI + live deploy exist from day one.)_
 2. **M1 — Engine core (pure TS)**: RNG, level profiles, chunk generation + border contract + connectivity, unit tests.
 3. **M2 — Render the world**: R3F canvas on `/play`, chunk manager + instanced rendering, procedural textures, fluorescent lighting + fog, Level 0 visuals.
 4. **M3 — Player**: pointer lock look, arrows/WASD movement, collision, sprint, fixed timestep.
@@ -237,12 +250,12 @@ Each milestone lands as a small PR-sized unit with tests; CI must stay green thr
 
 ## 11. Risks & Mitigations
 
-| Risk | Mitigation |
-|---|---|
-| Chunk seams / disagreeing borders | Edge-hash border contract + dedicated unit tests on adjacency |
-| GC hitches from chunk churn | Pooled instanced meshes, plain-array chunk data, LRU reuse |
-| WebGL context leaks navigating between routes | Single Canvas mounted only on `/play`, disposal audit + E2E loop test |
-| Audio blocked by autoplay policy | AudioContext created on splash key-press / menu click |
-| 1000 levels feeling samey | Trait-axis combinatorics + hand-tuned canonical levels + per-level palette/fog/audio |
-| Pointer lock quirks across browsers | drei `PointerLockControls` + explicit Esc/regain handling, E2E coverage |
+| Risk                                            | Mitigation                                                                                          |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Chunk seams / disagreeing borders               | Edge-hash border contract + dedicated unit tests on adjacency                                       |
+| GC hitches from chunk churn                     | Pooled instanced meshes, plain-array chunk data, LRU reuse                                          |
+| WebGL context leaks navigating between routes   | Single Canvas mounted only on `/play`, disposal audit + E2E loop test                               |
+| Audio blocked by autoplay policy                | AudioContext created on splash key-press / menu click                                               |
+| 1000 levels feeling samey                       | Trait-axis combinatorics + hand-tuned canonical levels + per-level palette/fog/audio                |
+| Pointer lock quirks across browsers             | drei `PointerLockControls` + explicit Esc/regain handling, E2E coverage                             |
 | Broken assets/routes under GitHub Pages subpath | `basePath`/`assetPrefix` from day one, E2E runs against the exported build served under the subpath |

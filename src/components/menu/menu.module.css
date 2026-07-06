@@ -1,0 +1,158 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(201, 180, 88, 0.08), transparent 60%), var(--bg);
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.title {
+  font-size: clamp(1.6rem, 5vw, 3.2rem);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-align: center;
+  animation: flicker 6s infinite;
+}
+
+.subtitle {
+  color: var(--text-dim);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.pressAny {
+  margin-top: 3rem;
+  color: var(--text-dim);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  animation: flicker 3.5s infinite;
+}
+
+.panel {
+  width: min(92vw, 30rem);
+  border: 1px solid rgba(201, 180, 88, 0.35);
+  background: rgba(23, 21, 9, 0.85);
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.panelTitle {
+  color: var(--accent);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.levelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.levelInput {
+  width: 5.5rem;
+  padding: 0.4rem;
+  background: var(--bg);
+  border: 1px solid var(--accent-dim);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.levelInput:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.levelPreview {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  min-height: 1.2em;
+}
+
+.levelPreview strong {
+  color: var(--text);
+}
+
+.stepButton {
+  padding: 0.35rem 0.7rem;
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.stepButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.select {
+  padding: 0.4rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--accent-dim);
+  color: var(--text);
+  font-family: inherit;
+  letter-spacing: 0.08em;
+  text-transform: capitalize;
+}
+
+.soonTag {
+  color: var(--accent-dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  background: rgba(6, 5, 3, 0.82);
+}
+
+.overlayTitle {
+  color: var(--accent);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  font-size: 1.3rem;
+  text-align: center;
+  animation: flicker 7s infinite;
+}
+
+.overlayHint {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-align: center;
+  max-width: 28rem;
+  line-height: 1.6;
+}

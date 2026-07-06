@@ -1,0 +1,77 @@
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.bars {
+  position: absolute;
+  left: 1.5rem;
+  bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(30vw, 260px);
+}
+
+.barLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+
+.barTrack {
+  height: 10px;
+  border: 1px solid rgba(232, 226, 200, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.barFill {
+  height: 100%;
+  transition: width 0.12s linear;
+}
+
+.healthFill {
+  composes: barFill;
+  background: var(--danger);
+}
+
+.staminaFill {
+  composes: barFill;
+  background: var(--accent);
+}
+
+.staminaExhausted {
+  composes: barFill;
+  background: #6e6339;
+}
+
+.levelBadge {
+  position: absolute;
+  top: 1.25rem;
+  left: 1.5rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+}
+
+.levelBadge strong {
+  color: var(--accent);
+}
+
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: rgba(232, 226, 200, 0.75);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+}

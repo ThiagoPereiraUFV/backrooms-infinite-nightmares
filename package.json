@@ -35,13 +35,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.185.0",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "jsdom": "^26",
     "prettier": "^3.9.4",
     "typescript": "^6",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": "^20.18.0 || >=22.0.0"

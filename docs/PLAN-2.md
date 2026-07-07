@@ -7,6 +7,53 @@ content (items, entities) that the MVP architecture reserved seams for.
 
 ---
 
+## 0. Implementation Status
+
+All six milestones (M8–M13) shipped. Every gate is green: `yarn typecheck`, `yarn lint`,
+`yarn test` (200 tests), `yarn test:coverage` (engine/state/config comfortably above the 90/85%
+thresholds), `yarn build`, and `yarn e2e` (8 tests across two Playwright projects — `chromium`
+desktop and `mobile-chromium` portrait-touch). Below is what was actually built, and where it
+knowingly diverges from the plan text above.
+
+- **M8 (pillar collision)** — built exactly as designed: `ObstacleWorld`/`ObstacleAabb` in
+  `engine/player/collision.ts`, `PILLAR_SCALE` shared by `ChunkMesh` and `ChunkManager`.
+- **M9 (furniture)** — built as designed, with one simplification: items never spawn _on top of_
+  furniture (the "deliberately sit on tables" flavor from §3.3 was optional and cut for time);
+  `placeSpawns` simply skips any candidate cell a ground furniture piece occupies.
+- **M10 (items)** — built as designed, with one simplification: pickup is proximity-only
+  (walk within `ITEM_PICKUP_RADIUS`), not "proximity + look-at". This is simpler, matches how
+  most Backrooms-style walking sims handle pickups, and avoids adding raycasting infrastructure
+  for a single consumer.
+- **M11 (entities)** — built as designed: `Wanderer` roams/chases/deals contact damage using the
+  same `ObstacleWorld` collision as the player; `activeEntitySpawns` thins by
+  `difficulty.enemyAggression`, so peaceful's `0` yields zero entities as a pure-function
+  invariant (`entities/wanderer.test.ts`), not a special case.
+- **M12 (responsive UI + orientation gate)** — built as designed: `useViewportOrientation` +
+  `useIsCoarsePointer` (capability-based, not UA sniffing) compose into `useOrientationGate`,
+  which both renders `RotateOverlay` and auto-pauses via the existing guarded `transition()`.
+  Added a second Playwright project (`mobile-chromium`, portrait 390×844, `hasTouch`) scoped to
+  `e2e/mobile.spec.ts` via `testMatch`/`testIgnore` so it never runs against the desktop specs.
+- **M13 (touch controls)** — built with one deliberate simplification against §7.1's literal
+  `InputFrame` interface: rather than replacing `MoveInput` (boolean forward/backward/left/right/
+  sprint) with a continuous-axis type, the joystick's analog vector is thresholded into the same
+  boolean shape (`hooks/joystickMath.ts` → `stickToMoveFlags`) and fed through the _unchanged_
+  `stepMovement`. This was the explicit risk-mitigation in §8 ("existing movement tests and
+  desktop e2e must pass unmodified") — and it held: `movement.ts` was never touched. Look input
+  is a separate minimal channel (`hooks/touchInputBus.ts`: `lookDX`/`lookDY`, drained once per
+  rendered frame in `PlayerRig`) rather than folding into one grand `InputFrame`.
+
+  **A real bug came out of building this**: `PointerLockControls` (drei/three-stdlib) attaches
+  its own document-level click-to-lock listener even when the app never calls `.lock()` on it.
+  On a touch device that had just entered fullscreen, tapping _anywhere_ — including the on-screen
+  Pause button — silently re-acquired pointer lock and fired `onLock`, reverting the game straight
+  back to `"playing"` immediately after pausing. Fixed by never mounting `<PointerLockControls>`
+  at all when `useIsCoarsePointer()` is true (`PlayerRig.tsx`) — exactly what §7.2 already said
+  ("no pointer lock involved on touch"), just not yet wired that strictly. Caught by the
+  `mobile-chromium` e2e pause test, not by any unit test — worth remembering if touch input is
+  extended later.
+
+---
+
 ## 1. Scope
 
 ### In scope

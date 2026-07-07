@@ -14,6 +14,10 @@ export interface AudioEngine {
   playFootstep(surface: FootstepSurface, sprinting: boolean): void;
   playUiClick(): void;
   playBreath(): void;
+  /** One-shot chime when an item is picked up. */
+  playPickup(): void;
+  /** One-shot proximity cue when a hostile entity is first noticed nearby. */
+  playGrowl(): void;
   setMusicVolume(volume: number): void;
   setSfxVolume(volume: number): void;
   /** Suspends output (pause menu). */
@@ -30,6 +34,8 @@ export class NullAudioEngine implements AudioEngine {
   playFootstep(): void {}
   playUiClick(): void {}
   playBreath(): void {}
+  playPickup(): void {}
+  playGrowl(): void {}
   setMusicVolume(): void {}
   setSfxVolume(): void {}
   suspend(): void {}

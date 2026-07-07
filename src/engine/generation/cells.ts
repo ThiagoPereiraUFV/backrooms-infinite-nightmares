@@ -7,3 +7,10 @@ export const CELL_PILLAR = 2;
 export type Cell = typeof CELL_OPEN | typeof CELL_WALL | typeof CELL_PILLAR;
 
 export const cellIndex = (x: number, z: number): number => z * CHUNK_SIZE + x;
+
+/** A spawned world object (item/entity), anchored to a cell by id. */
+export interface ChunkSpawn {
+  id: string;
+  cellX: number;
+  cellZ: number;
+}

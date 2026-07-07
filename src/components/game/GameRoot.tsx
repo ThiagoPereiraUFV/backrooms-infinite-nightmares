@@ -7,14 +7,50 @@ import { NullAudioEngine, type AudioEngine } from "@/engine/audio/AudioEngine";
 import { ProceduralAudioEngine } from "@/engine/audio/ProceduralAudioEngine";
 import { ChunkManager } from "@/engine/generation/chunkManager";
 import { createLevelProfile } from "@/engine/generation/levelProfile";
+import { useCollectedStore } from "@/state/collectedStore";
 import { useGameStore } from "@/state/gameStore";
 import { usePlayerStore } from "@/state/playerStore";
 import { useSettingsStore, type SettingsState } from "@/state/settingsStore";
+import { useIsCoarsePointer } from "@/hooks/useIsCoarsePointer";
+import { useOrientationGate } from "@/hooks/useOrientationGate";
 import { Hud } from "@/components/hud/Hud";
+import { RotateOverlay } from "@/components/hud/RotateOverlay";
+import { TouchControls } from "@/components/hud/TouchControls";
 import { SettingsPanel } from "@/components/menu/SettingsPanel";
 import { Button } from "@/components/ui/Button";
 import { GameScene } from "@/components/scene/GameScene";
 import styles from "@/components/menu/menu.module.css";
+
+/**
+ * Best-effort: iOS Safari has neither API, so both calls are no-ops there.
+ * Sequenced (not fire-and-forget in parallel) because orientation.lock()
+ * requires the document to already be in fullscreen on several platforms.
+ */
+async function claimFullscreenLandscape(container: HTMLElement | null): Promise<void> {
+  try {
+    await container?.requestFullscreen?.();
+  } catch {
+    // Fullscreen denied or unsupported; still worth trying orientation lock.
+  }
+  try {
+    const orientation = screen.orientation as unknown as {
+      lock?: (o: string) => Promise<void>;
+    };
+    await orientation.lock?.("landscape");
+  } catch {
+    // No Screen Orientation API (iOS Safari) — RotateOverlay is the fallback.
+  }
+}
+
+function releaseFullscreenLandscape(): void {
+  if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+  const orientation = screen.orientation as unknown as { unlock?: () => void };
+  try {
+    orientation.unlock?.();
+  } catch {
+    // Nothing to unlock.
+  }
+}
 
 /**
  * The game session. Owns the world (chunk manager), the audio engine and the
@@ -33,13 +69,22 @@ export default function GameRoot() {
   const profile = useMemo(() => createLevelProfile(level), [level]);
   const manager = useMemo(() => new ChunkManager(worldSeed, profile), [worldSeed, profile]);
   const controlsRef = useRef<PointerLockControlsImpl | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<AudioEngine>(new NullAudioEngine());
+  const rotateBlocked = useOrientationGate(phase);
+  const isCoarsePointer = useIsCoarsePointer();
 
   // Deep-linking directly to /play: walk the store into "loading" legally.
   useEffect(() => {
     const game = useGameStore.getState();
     if (game.phase === "splash") game.transition("menu");
     if (game.phase === "menu") game.startGame();
+  }, []);
+
+  // No save games: every session starts with nothing collected.
+  useEffect(() => {
+    useCollectedStore.getState().reset();
+    return () => useCollectedStore.getState().reset();
   }, []);
 
   // Audio follows the settings store for its entire lifetime.
@@ -60,6 +105,19 @@ export default function GameRoot() {
 
   const getAudio = useCallback(() => audioRef.current, []);
 
+  const startPlaying = useCallback(() => {
+    const game = useGameStore.getState();
+    if (game.phase === "loading" || game.phase === "paused") {
+      game.transition("playing");
+      audioRef.current.resume();
+    }
+  }, []);
+
+  // Desktop: PointerLockControls calls this once the lock is actually
+  // acquired. Touch never locks (there's no mouse to lock), so the touch
+  // branch of enter() below calls startPlaying() directly instead.
+  const onLock = startPlaying;
+
   const enter = () => {
     // First entry is a user gesture: safe to create the AudioContext.
     if (audioRef.current instanceof NullAudioEngine) {
@@ -74,16 +132,13 @@ export default function GameRoot() {
         // Audio stays on the null engine; the game itself must keep working.
       }
     }
-    controlsRef.current?.lock();
-  };
-
-  const onLock = useCallback(() => {
-    const game = useGameStore.getState();
-    if (game.phase === "loading" || game.phase === "paused") {
-      game.transition("playing");
-      audioRef.current.resume();
+    if (isCoarsePointer) {
+      startPlaying();
+      void claimFullscreenLandscape(containerRef.current);
+    } else {
+      controlsRef.current?.lock();
     }
-  }, []);
+  };
 
   const onUnlock = useCallback(() => {
     const game = useGameStore.getState();
@@ -97,11 +152,22 @@ export default function GameRoot() {
     audioRef.current.playUiClick();
     useGameStore.getState().quitToMenu();
     usePlayerStore.getState().reset();
+    releaseFullscreenLandscape();
     router.push("/menu");
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0 }}>
+    <div
+      ref={containerRef}
+      style={{
+        position: "fixed",
+        inset: 0,
+        // Gesture defenses: a look-drag must never trigger pull-to-refresh
+        // or an edge-swipe back navigation.
+        touchAction: "none",
+        overscrollBehavior: "none",
+      }}
+    >
       <GameScene
         manager={manager}
         profile={profile}
@@ -118,7 +184,9 @@ export default function GameRoot() {
             Level {profile.level} — {profile.name}
           </div>
           <p className={styles.overlayHint}>
-            Arrows / WASD to move · Mouse to look · Shift to run · Esc to pause
+            {isCoarsePointer
+              ? "Joystick to move · Drag to look · Hold Run to sprint · Pause button top-right"
+              : "Arrows / WASD to move · Mouse to look · Shift to run · Esc to pause"}
           </p>
           <Button variant="primary" onClick={enter} data-testid="enter-game">
             Enter
@@ -141,6 +209,10 @@ export default function GameRoot() {
           </div>
         </div>
       )}
+
+      {isCoarsePointer && phase === "playing" && <TouchControls onPause={onUnlock} />}
+
+      {rotateBlocked && <RotateOverlay />}
     </div>
   );
 }

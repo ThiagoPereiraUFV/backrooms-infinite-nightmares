@@ -15,7 +15,7 @@ export interface LevelPalette {
   light: string;
 }
 
-/** Phase 2: spawn table entry — item/entity id with spawn weight per chunk. */
+/** Spawn table entry — item/entity registry id with a relative spawn weight. */
 export interface SpawnTableEntry {
   id: string;
   weight: number;
@@ -45,7 +45,9 @@ export interface LevelProfile {
   furnitureDensity: number;
   /** Furniture piece weights for this level (keys = furniture def ids). */
   furnitureWeights: Record<string, number>;
-  /** Phase 2: what can spawn in this level's chunks. Empty in MVP. */
+  /** 0..1 — expected item/entity spawn points per open interior cell. */
+  itemSpawnDensity: number;
+  /** What can spawn in this level's chunks (item ids and entity ids alike). */
   spawnTable: SpawnTableEntry[];
 }
 
@@ -251,6 +253,13 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     ambience: "fluorescentHum",
     furnitureDensity: 0.02,
     furnitureWeights: { chair: 2, table: 0.5, crate: 0.3 },
+    itemSpawnDensity: 0.012,
+    spawnTable: [
+      { id: "bandage", weight: 1.5 },
+      { id: "adrenaline", weight: 1 },
+      { id: "flashlight", weight: 0.3 },
+      { id: "wanderer", weight: 0.3 },
+    ],
   },
   1: {
     name: "Habitable Zone",
@@ -266,6 +275,13 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     ambience: "deepDrone",
     furnitureDensity: 0.015,
     furnitureWeights: { crate: 3, cabinet: 0.5 },
+    itemSpawnDensity: 0.01,
+    spawnTable: [
+      { id: "bandage", weight: 1 },
+      { id: "adrenaline", weight: 1 },
+      { id: "flashlight", weight: 0.2 },
+      { id: "wanderer", weight: 0.4 },
+    ],
   },
   2: {
     name: "Pipe Dreams",
@@ -281,6 +297,13 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     ambience: "deepDrone",
     furnitureDensity: 0.02,
     furnitureWeights: { crate: 3, cabinet: 1 },
+    itemSpawnDensity: 0.014,
+    spawnTable: [
+      { id: "bandage", weight: 1.5 },
+      { id: "adrenaline", weight: 0.8 },
+      { id: "flashlight", weight: 0.5 },
+      { id: "wanderer", weight: 0.8 },
+    ],
   },
   3: {
     name: "Electrical Station",
@@ -296,6 +319,13 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     ambience: "fluorescentHum",
     furnitureDensity: 0.03,
     furnitureWeights: { cabinet: 3, crate: 2, chair: 0.5, table: 0.5 },
+    itemSpawnDensity: 0.014,
+    spawnTable: [
+      { id: "bandage", weight: 1.2 },
+      { id: "adrenaline", weight: 1 },
+      { id: "flashlight", weight: 0.6 },
+      { id: "wanderer", weight: 0.9 },
+    ],
   },
   4: {
     name: "Abandoned Office",
@@ -311,6 +341,13 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     ambience: "nearSilence",
     furnitureDensity: 0.1,
     furnitureWeights: { chair: 4, table: 3, cabinet: 2, bookshelf: 1.5, drawer: 1, couch: 0.5 },
+    itemSpawnDensity: 0.016,
+    spawnTable: [
+      { id: "bandage", weight: 1 },
+      { id: "adrenaline", weight: 0.8 },
+      { id: "flashlight", weight: 0.3 },
+      { id: "wanderer", weight: 0.5 },
+    ],
   },
   5: {
     name: "The Terror Hotel",
@@ -326,6 +363,13 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     ambience: "windHollow",
     furnitureDensity: 0.07,
     furnitureWeights: { bed: 3, drawer: 2, chair: 1, table: 1, couch: 1, bookshelf: 0.5 },
+    itemSpawnDensity: 0.014,
+    spawnTable: [
+      { id: "bandage", weight: 1.3 },
+      { id: "adrenaline", weight: 1 },
+      { id: "flashlight", weight: 0.4 },
+      { id: "wanderer", weight: 1 },
+    ],
   },
   6: {
     name: "Lights Out",
@@ -348,6 +392,13 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     ambience: "nearSilence",
     furnitureDensity: 0.01,
     furnitureWeights: { chair: 1, crate: 1 },
+    itemSpawnDensity: 0.02,
+    spawnTable: [
+      { id: "bandage", weight: 1 },
+      { id: "adrenaline", weight: 1.2 },
+      { id: "flashlight", weight: 1.2 },
+      { id: "wanderer", weight: 1.8 },
+    ],
   },
 };
 
@@ -384,9 +435,16 @@ export function createLevelProfile(level: number): LevelProfile {
     // Furniture rolls come last so adding them never reshuffled older traits.
     furnitureDensity: rng.range(0.015, 0.08),
     furnitureWeights: FAMILY_FURNITURE[family.name],
-    spawnTable: [],
+    // Item/entity rolls come after furniture for the same reason.
+    itemSpawnDensity: rng.range(0.006, 0.02),
+    spawnTable: [
+      { id: "bandage", weight: rng.range(0.5, 2) },
+      { id: "adrenaline", weight: rng.range(0.5, 2) },
+      { id: "flashlight", weight: rng.range(0.1, 0.6) },
+      { id: "wanderer", weight: rng.range(0.2, 1.5) },
+    ],
   };
 
   const canonical = CANONICAL_LEVELS[level];
-  return canonical ? { ...derived, ...canonical, level, spawnTable: [] } : derived;
+  return canonical ? { ...derived, ...canonical, level } : derived;
 }

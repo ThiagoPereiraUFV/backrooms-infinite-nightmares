@@ -13,6 +13,7 @@ describe("settingsStore", () => {
       sfxEnabled: true,
       sfxVolume: 0.8,
       mode: "single",
+      touchLookSensitivity: 1,
     });
   });
 
@@ -53,5 +54,17 @@ describe("settingsStore", () => {
   it("exposes clampLevel for UI input parsing", () => {
     expect(clampLevel(Number.POSITIVE_INFINITY)).toBe(0);
     expect(clampLevel(42.4)).toBe(42);
+  });
+
+  it("clamps touch look sensitivity into 0.3..3", () => {
+    const { setTouchLookSensitivity } = useSettingsStore.getState();
+    setTouchLookSensitivity(0.01);
+    expect(useSettingsStore.getState().touchLookSensitivity).toBe(0.3);
+    setTouchLookSensitivity(10);
+    expect(useSettingsStore.getState().touchLookSensitivity).toBe(3);
+    setTouchLookSensitivity(1.5);
+    expect(useSettingsStore.getState().touchLookSensitivity).toBe(1.5);
+    setTouchLookSensitivity(Number.NaN);
+    expect(useSettingsStore.getState().touchLookSensitivity).toBe(1);
   });
 });

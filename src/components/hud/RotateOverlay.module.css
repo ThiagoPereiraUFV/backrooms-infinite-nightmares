@@ -1,0 +1,39 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: rgba(6, 5, 3, 0.94);
+  padding: max(1.5rem, var(--safe-top)) max(1.5rem, var(--safe-right))
+    max(1.5rem, var(--safe-bottom)) max(1.5rem, var(--safe-left));
+  text-align: center;
+}
+
+.glyph {
+  font-size: clamp(2.5rem, 14vw, 4rem);
+  color: var(--accent);
+  animation: rotateHint 1.8s ease-in-out infinite;
+}
+
+@keyframes rotateHint {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(90deg);
+  }
+}
+
+.message {
+  color: var(--text);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: clamp(0.85rem, 3.5vw, 1.1rem);
+  max-width: 24rem;
+  line-height: 1.6;
+}

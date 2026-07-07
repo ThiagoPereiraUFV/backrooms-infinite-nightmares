@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MAX_LEVEL } from "@/config/constants";
+import { mockMatchMedia } from "@/hooks/matchMediaTestUtils";
 import { useSettingsStore } from "@/state/settingsStore";
 import { SettingsPanel } from "./SettingsPanel";
 
@@ -15,6 +16,7 @@ describe("SettingsPanel", () => {
       sfxEnabled: true,
       sfxVolume: 0.8,
       mode: "single",
+      touchLookSensitivity: 1,
     });
   });
 
@@ -68,5 +70,28 @@ describe("SettingsPanel", () => {
     expect(screen.queryByRole("spinbutton", { name: "Level number" })).not.toBeInTheDocument();
     expect(screen.queryByText(/multiplayer soon/i)).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Difficulty" })).toBeInTheDocument();
+  });
+
+  it("hides the touch look-sensitivity slider on a fine-pointer device", () => {
+    render(<SettingsPanel />);
+    expect(
+      screen.queryByRole("slider", { name: "Touch look sensitivity" }),
+    ).not.toBeInTheDocument();
+  });
+
+  describe("on a coarse-pointer (touch) device", () => {
+    afterEach(() => {
+      // @ts-expect-error test cleanup of a test-only global override
+      delete window.matchMedia;
+    });
+
+    it("shows and updates the touch look-sensitivity slider", () => {
+      mockMatchMedia({ "(pointer: coarse), (hover: none)": true });
+      render(<SettingsPanel />);
+      const slider = screen.getByRole("slider", { name: "Touch look sensitivity" });
+      expect(slider).toBeInTheDocument();
+      fireEvent.change(slider, { target: { value: "2" } });
+      expect(useSettingsStore.getState().touchLookSensitivity).toBe(2);
+    });
   });
 });

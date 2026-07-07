@@ -1,0 +1,70 @@
+.lookSurface {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.joystickBase {
+  position: absolute;
+  left: max(1.5rem, calc(var(--safe-left) + 1rem));
+  bottom: max(1.5rem, calc(var(--safe-bottom) + 1rem));
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 226, 200, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  touch-action: none;
+}
+
+.joystickThumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  background: rgba(201, 180, 88, 0.4);
+  border: 1px solid rgba(201, 180, 88, 0.7);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.sprintButton {
+  position: absolute;
+  right: max(1.5rem, calc(var(--safe-right) + 1rem));
+  bottom: max(1.5rem, calc(var(--safe-bottom) + 1rem));
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 226, 200, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  touch-action: none;
+}
+
+.sprintButton:active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(201, 180, 88, 0.16);
+}
+
+.pauseButton {
+  position: absolute;
+  top: max(1.25rem, calc(var(--safe-top) + 0.75rem));
+  right: max(1.5rem, calc(var(--safe-right) + 1rem));
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  border: 1px solid rgba(232, 226, 200, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  touch-action: none;
+}

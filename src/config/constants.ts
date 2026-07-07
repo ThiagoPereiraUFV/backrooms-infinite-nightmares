@@ -41,3 +41,18 @@ export const MAX_LEVEL = 999;
 
 /** HUD store snapshot frequency (Hz) so DOM updates never track the render loop. */
 export const HUD_UPDATE_HZ = 10;
+
+/** Distance at which a walked-over item spawn is collected. */
+export const ITEM_PICKUP_RADIUS = 1.0;
+
+/** Entities never spawn this close to the player's session spawn point. */
+export const ENEMY_MIN_SPAWN_DISTANCE = 12;
+
+/** Safety cap on concurrently simulated entities, regardless of difficulty. */
+export const MAX_ACTIVE_ENTITIES = 8;
+
+/** Distance at which a newly-approached entity triggers a one-shot growl cue. */
+export const ENEMY_GROWL_RADIUS = 8;
+
+/** Chunk ring (radius, in chunks) scanned for item/entity spawn reconciliation. */
+export const SPAWN_SCAN_RADIUS_CHUNKS = 1;

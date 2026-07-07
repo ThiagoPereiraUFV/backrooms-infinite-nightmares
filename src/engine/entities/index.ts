@@ -1,15 +1,23 @@
+import type { ChunkSpawn } from "../generation/cells";
+import { filterSpawnsByKeepFraction } from "../generation/spawnFilter";
+import type { ObstacleWorld } from "../player/collision";
 import { Registry } from "../registry";
+import { createWandererDefinition } from "./wanderer";
 
 /**
- * Phase 2 contract for world entities (enemies, wanderers, ...). The game
- * loop already calls EntitySystem.update every simulation tick, so shipping
- * an enemy later means registering a definition — the loop doesn't change.
+ * Contract for world entities (enemies, wanderers, ...). The game loop
+ * already calls EntitySystem.update every simulation tick, so shipping a new
+ * enemy means registering a definition — the loop doesn't change.
  */
 export interface EntityContext {
   playerPosition: { x: number; z: number };
   /** Routed through the difficulty-scaled damage pipeline. */
   damagePlayer(amount: number): void;
   deltaSeconds: number;
+  /** Same collision surface (walls, pillars, furniture) the player resolves against. */
+  world: ObstacleWorld;
+  /** 0..1 difficulty.enemyAggression — scales chase speed/aggro behavior. */
+  aggression: number;
 }
 
 export interface EntityDefinition {
@@ -27,24 +35,60 @@ export interface EntityInstance {
 export const entityRegistry = new Registry<EntityDefinition>();
 
 export class EntitySystem {
-  private readonly entities: EntityInstance[] = [];
+  private readonly entities = new Map<string, EntityInstance>();
+  private autoKeyCounter = 0;
 
-  add(entity: EntityInstance): void {
-    this.entities.push(entity);
+  /** Adds an entity under an explicit key (for reconciliation) or an auto key. */
+  add(entity: EntityInstance, key?: string): void {
+    this.entities.set(key ?? `auto:${this.autoKeyCounter++}`, entity);
+  }
+
+  remove(key: string): void {
+    this.entities.delete(key);
+  }
+
+  has(key: string): boolean {
+    return this.entities.has(key);
+  }
+
+  keys(): IterableIterator<string> {
+    return this.entities.keys();
+  }
+
+  entries(): IterableIterator<[string, EntityInstance]> {
+    return this.entities.entries();
   }
 
   clear(): void {
-    this.entities.length = 0;
+    this.entities.clear();
   }
 
   get count(): number {
-    return this.entities.length;
+    return this.entities.size;
   }
 
-  /** No-op while the registry is empty (MVP) — the hook point costs nothing. */
+  /** No-op while empty — the hook point costs nothing when nothing is spawned. */
   update(context: EntityContext): void {
-    for (const entity of this.entities) {
+    for (const entity of this.entities.values()) {
       entity.update(context);
     }
   }
 }
+
+/**
+ * Entity spawn points active this session: registry-filtered from the
+ * chunk's full spawn list, then thinned by difficulty aggression (0
+ * aggression — peaceful — always yields none, satisfying the "peaceful
+ * spawns nothing" invariant without special-casing it).
+ */
+export function activeEntitySpawns(
+  cx: number,
+  cz: number,
+  spawns: readonly ChunkSpawn[],
+  aggression: number,
+): ChunkSpawn[] {
+  const entities = spawns.filter((spawn) => entityRegistry.has(spawn.id));
+  return filterSpawnsByKeepFraction(cx, cz, entities, aggression);
+}
+
+entityRegistry.register(createWandererDefinition());

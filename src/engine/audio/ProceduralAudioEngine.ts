@@ -244,6 +244,52 @@ export class ProceduralAudioEngine implements AudioEngine {
     };
   }
 
+  playPickup(): void {
+    if (this.disposed) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.09);
+    const envelope = this.ctx.createGain();
+    envelope.gain.setValueAtTime(0.001, now);
+    envelope.gain.exponentialRampToValueAtTime(0.16, now + 0.02);
+    envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    osc.connect(envelope);
+    envelope.connect(this.sfxBus);
+    osc.start(now);
+    osc.stop(now + 0.2);
+    osc.onended = () => {
+      osc.disconnect();
+      envelope.disconnect();
+    };
+  }
+
+  playGrowl(): void {
+    if (this.disposed) return;
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.getNoiseBuffer();
+    source.playbackRate.value = 0.35;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(320, now);
+    filter.frequency.exponentialRampToValueAtTime(90, now + 0.9);
+    const envelope = this.ctx.createGain();
+    envelope.gain.setValueAtTime(0, now);
+    envelope.gain.linearRampToValueAtTime(0.22, now + 0.15);
+    envelope.gain.linearRampToValueAtTime(0.001, now + 1.1);
+    source.connect(filter);
+    filter.connect(envelope);
+    envelope.connect(this.sfxBus);
+    source.start(now, Math.random(), 1.1);
+    source.onended = () => {
+      source.disconnect();
+      filter.disconnect();
+      envelope.disconnect();
+    };
+  }
+
   setMusicVolume(volume: number): void {
     this.musicBus.gain.value = Math.min(1, Math.max(0, volume));
   }

@@ -1,14 +1,16 @@
 .screen {
   position: fixed;
   inset: 0;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2rem;
+  gap: clamp(1.25rem, 4vh, 2rem);
   background:
     radial-gradient(ellipse at 50% 120%, rgba(201, 180, 88, 0.08), transparent 60%), var(--bg);
-  padding: 2rem;
+  padding: max(1.25rem, var(--safe-top)) max(1.25rem, var(--safe-right))
+    max(1.25rem, var(--safe-bottom)) max(1.25rem, var(--safe-left));
   overflow-y: auto;
 }
 
@@ -40,9 +42,11 @@
 
 .panel {
   width: min(92vw, 30rem);
+  max-height: 80dvh;
+  overflow-y: auto;
   border: 1px solid rgba(201, 180, 88, 0.35);
   background: rgba(23, 21, 9, 0.85);
-  padding: 1.5rem 2rem;
+  padding: clamp(1rem, 4vw, 1.5rem) clamp(1rem, 5vw, 2rem);
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -60,6 +64,8 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .levelInput {
@@ -103,6 +109,19 @@
   color: var(--accent);
 }
 
+/* Coarse pointers (touch) need >=44px targets; mouse keeps the compact size. */
+@media (pointer: coarse) {
+  .stepButton {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.5rem 0.9rem;
+  }
+
+  .select {
+    min-height: 44px;
+  }
+}
+
 .select {
   padding: 0.4rem 0.6rem;
   background: var(--bg);
@@ -135,8 +154,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.4rem;
+  gap: clamp(1rem, 4vh, 1.4rem);
   background: rgba(6, 5, 3, 0.82);
+  padding: max(1.25rem, var(--safe-top)) max(1.25rem, var(--safe-right))
+    max(1.25rem, var(--safe-bottom)) max(1.25rem, var(--safe-left));
+  overflow-y: auto;
 }
 
 .overlayTitle {

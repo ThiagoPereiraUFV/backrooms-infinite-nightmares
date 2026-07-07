@@ -11,7 +11,7 @@ export function Field({ label, children }: FieldProps) {
   return (
     <div className={styles.field}>
       <span className={styles.fieldLabel}>{label}</span>
-      <span style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>{children}</span>
+      <span className={styles.fieldControls}>{children}</span>
     </div>
   );
 }

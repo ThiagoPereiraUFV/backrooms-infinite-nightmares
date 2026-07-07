@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { MAX_LEVEL } from "@/config/constants";
 import { DIFFICULTIES, type Difficulty } from "@/config/difficulty";
 import { createLevelProfile } from "@/engine/generation/levelProfile";
+import { useIsCoarsePointer } from "@/hooks/useIsCoarsePointer";
 import { clampLevel, useSettingsStore } from "@/state/settingsStore";
 import { Field } from "@/components/ui/Field";
 import { Slider } from "@/components/ui/Slider";
@@ -18,6 +19,7 @@ export interface SettingsPanelProps {
 export function SettingsPanel({ compact = false }: SettingsPanelProps) {
   const settings = useSettingsStore();
   const preview = useMemo(() => createLevelProfile(settings.level), [settings.level]);
+  const isCoarsePointer = useIsCoarsePointer();
 
   return (
     <div className={styles.panel}>
@@ -107,6 +109,19 @@ export function SettingsPanel({ compact = false }: SettingsPanelProps) {
           onChange={settings.setSfxVolume}
         />
       </Field>
+
+      {isCoarsePointer && (
+        <Field label="Look sensitivity">
+          <Slider
+            label="Touch look sensitivity"
+            value={settings.touchLookSensitivity}
+            min={0.3}
+            max={3}
+            step={0.1}
+            onChange={settings.setTouchLookSensitivity}
+          />
+        </Field>
+      )}
     </div>
   );
 }

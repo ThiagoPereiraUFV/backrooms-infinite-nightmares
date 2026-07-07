@@ -143,9 +143,11 @@ describe("ProceduralAudioEngine", () => {
     engine.playFootstep("hard", true);
     engine.playUiClick();
     engine.playBreath();
+    engine.playPickup();
+    engine.playGrowl();
 
     const oneShots = context.nodes.filter((node) => node.started);
-    expect(oneShots.length).toBe(4);
+    expect(oneShots.length).toBe(6);
     for (const node of oneShots) {
       node.onended?.();
       expect(node.disconnect).toHaveBeenCalled();
@@ -183,6 +185,8 @@ describe("ProceduralAudioEngine", () => {
     engine.playFootstep("carpet", false);
     engine.playUiClick();
     engine.playBreath();
+    engine.playPickup();
+    engine.playGrowl();
     engine.suspend();
     engine.resume();
     engine.dispose();
@@ -199,6 +203,8 @@ describe("NullAudioEngine", () => {
     engine.playFootstep();
     engine.playUiClick();
     engine.playBreath();
+    engine.playPickup();
+    engine.playGrowl();
     engine.setMusicVolume();
     engine.setSfxVolume();
     engine.suspend();

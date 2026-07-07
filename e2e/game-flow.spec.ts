@@ -43,6 +43,8 @@ test("full flow: menu -> game boots 3D world -> quit back to menu", async ({ pag
   await expect(page.getByTestId("enter-overlay").getByText(/Level 0 — The Lobby/)).toBeVisible();
   await expect(page.locator("canvas")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("hud")).toBeVisible();
+  // Touch controls are coarse-pointer only — never on a fine-pointer desktop.
+  await expect(page.getByTestId("touch-controls")).not.toBeVisible();
 
   // WebGL must actually have initialized (SwiftShader in CI).
   const webglBooted = await page.evaluate(() => {

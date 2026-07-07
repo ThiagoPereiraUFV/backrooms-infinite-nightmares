@@ -9,6 +9,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0c0b07",
+  width: "device-width",
+  initialScale: 1,
+  // Lets env(safe-area-inset-*) resolve to real values on notched devices.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

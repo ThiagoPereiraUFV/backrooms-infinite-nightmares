@@ -5,16 +5,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { PointerLockControls as PointerLockControlsImpl } from "three-stdlib";
 import { CHUNK_WORLD_SIZE, PLAYER_EYE_HEIGHT, VIEW_DISTANCE_CHUNKS } from "@/config/constants";
+import { DIFFICULTY_CONFIGS } from "@/config/difficulty";
 import type { AudioEngine } from "@/engine/audio/AudioEngine";
+import type { ChunkData } from "@/engine/generation/chunk";
 import type { ChunkManager } from "@/engine/generation/chunkManager";
 import type { LevelProfile } from "@/engine/generation/levelProfile";
 import { usePlayerStore } from "@/state/playerStore";
+import { useSettingsStore } from "@/state/settingsStore";
 import { ChunkMesh } from "./ChunkMesh";
+import { ItemsField } from "./ItemsField";
 import { useLevelMaterials } from "./levelMaterials";
 import { PlayerRig } from "./PlayerRig";
 
-function ChunkField({ manager, profile }: { manager: ChunkManager; profile: LevelProfile }) {
-  const materials = useLevelMaterials(profile);
+/** Chunk ring around the player's last-published position, refreshed as they move. */
+function useVisibleChunks(manager: ChunkManager): ChunkData[] {
   const [center, setCenter] = useState({ cx: 0, cz: 0 });
 
   useEffect(() => {
@@ -29,7 +33,7 @@ function ChunkField({ manager, profile }: { manager: ChunkManager; profile: Leve
     return usePlayerStore.subscribe((snapshot) => apply(snapshot.x, snapshot.z));
   }, []);
 
-  const chunks = useMemo(
+  return useMemo(
     () =>
       manager.chunksAround(
         (center.cx + 0.5) * CHUNK_WORLD_SIZE,
@@ -38,7 +42,10 @@ function ChunkField({ manager, profile }: { manager: ChunkManager; profile: Leve
       ),
     [manager, center],
   );
+}
 
+function ChunkField({ chunks, profile }: { chunks: ChunkData[]; profile: LevelProfile }) {
+  const materials = useLevelMaterials(profile);
   return (
     <>
       {chunks.map((chunk) => (
@@ -96,6 +103,40 @@ function PlayerLamp({ profile }: { profile: LevelProfile }) {
   return <pointLight ref={lightRef} intensity={intensity} distance={14} decay={1.6} />;
 }
 
+/** Spotlight following the camera, on only while the flashlight item is toggled on. */
+function FlashlightBeam() {
+  const on = usePlayerStore((state) => state.flashlightOn);
+  const lightRef = useRef<THREE.SpotLight>(null);
+  const target = useMemo(() => new THREE.Object3D(), []);
+  const direction = useRef(new THREE.Vector3());
+
+  useFrame(({ camera }) => {
+    const light = lightRef.current;
+    if (!light) return;
+    light.position.copy(camera.position);
+    camera.getWorldDirection(direction.current);
+    target.position.copy(camera.position).addScaledVector(direction.current, 6);
+    light.target = target;
+  });
+
+  return (
+    <>
+      <primitive object={target} />
+      {on && (
+        <spotLight
+          ref={lightRef}
+          intensity={8}
+          angle={0.34}
+          penumbra={0.45}
+          distance={20}
+          decay={1.6}
+          color="#fff6d8"
+        />
+      )}
+    </>
+  );
+}
+
 export interface GameSceneProps {
   manager: ChunkManager;
   profile: LevelProfile;
@@ -113,6 +154,10 @@ export function GameScene({
   onUnlock,
   controlsRef,
 }: GameSceneProps) {
+  const chunks = useVisibleChunks(manager);
+  const difficulty = useSettingsStore((state) => state.difficulty);
+  const itemScarcity = DIFFICULTY_CONFIGS[difficulty].itemScarcity;
+
   return (
     <Canvas
       camera={{ fov: 78, near: 0.1, far: 220 }}
@@ -124,7 +169,9 @@ export function GameScene({
       <fogExp2 attach="fog" args={[profile.palette.fog, profile.fogDensity]} />
       <LevelLighting profile={profile} />
       <PlayerLamp profile={profile} />
-      <ChunkField manager={manager} profile={profile} />
+      <FlashlightBeam />
+      <ChunkField chunks={chunks} profile={profile} />
+      <ItemsField chunks={chunks} itemScarcity={itemScarcity} />
       <PlayerRig
         manager={manager}
         profile={profile}

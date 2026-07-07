@@ -1,17 +1,11 @@
 import { CHUNK_SIZE, CHUNK_WORLD_SIZE } from "@/config/constants";
 import { placeFurniture, type FurniturePlacement } from "../furniture/placeFurniture";
-import { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex } from "./cells";
-import type { GeometryStyle, LevelProfile } from "./levelProfile";
+import { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex, type ChunkSpawn } from "./cells";
+import type { LevelProfile, GeometryStyle } from "./levelProfile";
+import { placeSpawns } from "./placeSpawns";
 import { createRng, hashInts, pickWeighted, type Rng } from "./rng";
 
-export { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex, type Cell } from "./cells";
-
-/** Phase 2: a spawned world object (item/entity) anchored to a cell. */
-export interface ChunkSpawn {
-  id: string;
-  cellX: number;
-  cellZ: number;
-}
+export { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex, type Cell, type ChunkSpawn } from "./cells";
 
 export interface ChunkData {
   cx: number;
@@ -22,7 +16,7 @@ export interface ChunkData {
   lights: number[];
   /** Static furniture placed in this chunk (world-space, deterministic). */
   furniture: FurniturePlacement[];
-  /** Phase 2: objects spawned in this chunk. Empty in MVP. */
+  /** Item/entity spawn points placed in this chunk (deterministic per seed+level). */
   spawns: ChunkSpawn[];
 }
 
@@ -246,14 +240,28 @@ export function generateChunk(
 
   // Furniture pass: separately seeded so it can evolve without reshuffling
   // the layout, and anchored to the same connectivity anchors it must respect.
+  const originX = cx * CHUNK_WORLD_SIZE;
+  const originZ = cz * CHUNK_WORLD_SIZE;
   const furniture = placeFurniture({
     cells,
     anchors,
     rng: createRng(hashInts(worldSeed, cx, cz, 0xfa57)),
     profile,
-    originX: cx * CHUNK_WORLD_SIZE,
-    originZ: cz * CHUNK_WORLD_SIZE,
+    originX,
+    originZ,
   });
 
-  return { cx, cz, cells, lights, furniture, spawns: [] };
+  // Spawn pass: item/entity points, seeded independently, clear of furniture.
+  const spawns = placeSpawns({
+    cells,
+    anchors,
+    furniture,
+    rng: createRng(hashInts(worldSeed, cx, cz, 0x57a4)),
+    spawnTable: profile.spawnTable,
+    density: profile.itemSpawnDensity,
+    originX,
+    originZ,
+  });
+
+  return { cx, cz, cells, lights, furniture, spawns };
 }

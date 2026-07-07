@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DIFFICULTY_CONFIGS } from "@/config/difficulty";
 import {
   applyDamage,
+  boostStamina,
   canSprint,
   createStats,
   heal,
@@ -94,5 +95,34 @@ describe("health (phase 2 pipeline)", () => {
     expect(stats.health).toBe(65);
     heal(stats, 1000);
     expect(stats.health).toBe(MAX_HEALTH);
+  });
+});
+
+describe("boostStamina", () => {
+  it("adds stamina up to the cap", () => {
+    const stats = createStats();
+    stats.stamina = 30;
+    boostStamina(stats, 40);
+    expect(stats.stamina).toBe(70);
+    boostStamina(stats, 1000);
+    expect(stats.stamina).toBe(MAX_STAMINA);
+  });
+
+  it("clears exhaustion and any pending regen cooldown", () => {
+    const stats = createStats();
+    stats.stamina = 0;
+    stats.exhausted = true;
+    stats.staminaRegenCooldown = 2;
+    boostStamina(stats, 20);
+    expect(stats.exhausted).toBe(false);
+    expect(stats.staminaRegenCooldown).toBe(0);
+    expect(canSprint(stats)).toBe(true);
+  });
+
+  it("ignores negative amounts", () => {
+    const stats = createStats();
+    stats.stamina = 50;
+    boostStamina(stats, -30);
+    expect(stats.stamina).toBe(50);
   });
 });

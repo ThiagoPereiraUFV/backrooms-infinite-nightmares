@@ -13,12 +13,15 @@ export interface SettingsState {
   sfxEnabled: boolean;
   sfxVolume: number;
   mode: GameMode;
+  /** Touch drag-look sensitivity multiplier (mobile only). */
+  touchLookSensitivity: number;
   setLevel(level: number): void;
   setDifficulty(difficulty: Difficulty): void;
   setMusicEnabled(enabled: boolean): void;
   setMusicVolume(volume: number): void;
   setSfxEnabled(enabled: boolean): void;
   setSfxVolume(volume: number): void;
+  setTouchLookSensitivity(sensitivity: number): void;
 }
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -29,6 +32,12 @@ export const clampLevel = (level: number): number =>
 
 const clampVolume = (volume: number): number => (Number.isFinite(volume) ? clamp(volume, 0, 1) : 1);
 
+const MIN_TOUCH_SENSITIVITY = 0.3;
+const MAX_TOUCH_SENSITIVITY = 3;
+
+const clampTouchSensitivity = (value: number): number =>
+  Number.isFinite(value) ? clamp(value, MIN_TOUCH_SENSITIVITY, MAX_TOUCH_SENSITIVITY) : 1;
+
 const DEFAULTS = {
   level: 0,
   difficulty: "peaceful" as Difficulty,
@@ -37,6 +46,7 @@ const DEFAULTS = {
   sfxEnabled: true,
   sfxVolume: 0.8,
   mode: "single" as GameMode,
+  touchLookSensitivity: 1,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -50,6 +60,8 @@ export const useSettingsStore = create<SettingsState>()(
       setMusicVolume: (musicVolume) => set({ musicVolume: clampVolume(musicVolume) }),
       setSfxEnabled: (sfxEnabled) => set({ sfxEnabled }),
       setSfxVolume: (sfxVolume) => set({ sfxVolume: clampVolume(sfxVolume) }),
+      setTouchLookSensitivity: (touchLookSensitivity) =>
+        set({ touchLookSensitivity: clampTouchSensitivity(touchLookSensitivity) }),
     }),
     {
       name: "bin-settings",
@@ -67,6 +79,9 @@ export const useSettingsStore = create<SettingsState>()(
           musicVolume: clampVolume(raw.musicVolume ?? DEFAULTS.musicVolume),
           sfxEnabled: typeof raw.sfxEnabled === "boolean" ? raw.sfxEnabled : DEFAULTS.sfxEnabled,
           sfxVolume: clampVolume(raw.sfxVolume ?? DEFAULTS.sfxVolume),
+          touchLookSensitivity: clampTouchSensitivity(
+            raw.touchLookSensitivity ?? DEFAULTS.touchLookSensitivity,
+          ),
           // Multiplayer is "soon": never rehydrate into an unsupported mode.
           mode: "single",
         };

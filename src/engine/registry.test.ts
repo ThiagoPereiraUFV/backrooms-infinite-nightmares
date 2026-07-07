@@ -26,6 +26,8 @@ describe("EntitySystem", () => {
     playerPosition: { x: 0, z: 0 },
     damagePlayer: () => {},
     deltaSeconds: 1 / 120,
+    world: { obstaclesIn: () => [] },
+    aggression: 1,
   };
 
   it("updates every entity and supports clearing", () => {

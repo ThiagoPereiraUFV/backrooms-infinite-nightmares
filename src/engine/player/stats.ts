@@ -58,3 +58,12 @@ export function applyDamage(stats: PlayerStats, amount: number, config: Difficul
 export function heal(stats: PlayerStats, amount: number): void {
   stats.health = Math.min(MAX_HEALTH, stats.health + Math.max(0, amount));
 }
+
+/** Adrenaline-style instant stamina burst; clears exhaustion so sprint is immediately available. */
+export function boostStamina(stats: PlayerStats, amount: number): void {
+  stats.stamina = Math.min(MAX_STAMINA, stats.stamina + Math.max(0, amount));
+  if (stats.stamina > 0) {
+    stats.exhausted = false;
+    stats.staminaRegenCooldown = 0;
+  }
+}

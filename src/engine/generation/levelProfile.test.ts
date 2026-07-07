@@ -41,7 +41,13 @@ describe("createLevelProfile", () => {
       for (const weight of Object.values(profile.furnitureWeights)) {
         expect(weight).toBeGreaterThanOrEqual(0);
       }
-      expect(profile.spawnTable).toEqual([]);
+      expect(profile.itemSpawnDensity).toBeGreaterThanOrEqual(0);
+      expect(profile.itemSpawnDensity).toBeLessThanOrEqual(1);
+      expect(profile.spawnTable.length).toBeGreaterThan(0);
+      for (const entry of profile.spawnTable) {
+        expect(entry.id.length).toBeGreaterThan(0);
+        expect(entry.weight).toBeGreaterThanOrEqual(0);
+      }
     }
   });
 
@@ -57,6 +63,10 @@ describe("createLevelProfile", () => {
     // Level 6 is nearly pitch black with heavy fog.
     expect(createLevelProfile(6).lightIntensity).toBeLessThan(0.1);
     expect(createLevelProfile(6).fogDensity).toBeGreaterThan(0.1);
+    // Lights Out is the scariest level lore-wise: heaviest wanderer presence.
+    const wandererWeight = (level: number) =>
+      createLevelProfile(level).spawnTable.find((e) => e.id === "wanderer")?.weight ?? 0;
+    expect(wandererWeight(6)).toBeGreaterThan(wandererWeight(0));
   });
 
   it("varies characteristics across levels", () => {

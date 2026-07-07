@@ -18,10 +18,28 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: /mobile\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
           // Software WebGL so the 3D scene boots on headless CI runners.
+          args: ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
+        },
+      },
+    },
+    {
+      // Portrait touch emulation (still Chromium, for SwiftShader WebGL
+      // compatibility) — covers the M12/M13 mobile UX: rotate advisory,
+      // touch controls. Kept in its own spec file / project so it never
+      // runs against the desktop flows.
+      name: "mobile-chromium",
+      testMatch: /mobile\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+        launchOptions: {
           args: ["--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader"],
         },
       },

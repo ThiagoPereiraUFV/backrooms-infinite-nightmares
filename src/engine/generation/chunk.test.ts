@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHUNK_SIZE } from "@/config/constants";
+import { CELL_SIZE, CHUNK_SIZE } from "@/config/constants";
 import { CELL_OPEN, cellIndex, edgeGateways, generateChunk, type ChunkData } from "./chunk";
 import { createLevelProfile } from "./levelProfile";
 
@@ -119,7 +119,61 @@ describe("generateChunk", () => {
     }
   });
 
-  it("ships empty spawn lists in the MVP", () => {
-    expect(generateChunk(WORLD_SEED, 0, 0, profile).spawns).toEqual([]);
+  it("places spawns deterministically on open, non-anchor, unfurnished cells", () => {
+    const last = CHUNK_SIZE - 1;
+    const center = CHUNK_SIZE >> 1;
+    for (const [cx, cz] of [
+      [0, 0],
+      [5, -7],
+    ] as const) {
+      const a = generateChunk(WORLD_SEED, cx, cz, profile);
+      const b = generateChunk(WORLD_SEED, cx, cz, profile);
+      expect(a.spawns).toEqual(b.spawns);
+
+      const anchors = new Set<number>();
+      anchors.add(cellIndex(center, center));
+      for (const row of edgeGateways(WORLD_SEED, 0, cx, cz)) {
+        anchors.add(cellIndex(0, row));
+        anchors.add(cellIndex(1, row));
+      }
+      for (const row of edgeGateways(WORLD_SEED, 0, cx + 1, cz)) {
+        anchors.add(cellIndex(last, row));
+        anchors.add(cellIndex(last - 1, row));
+      }
+      for (const col of edgeGateways(WORLD_SEED, 1, cx, cz)) {
+        anchors.add(cellIndex(col, 0));
+        anchors.add(cellIndex(col, 1));
+      }
+      for (const col of edgeGateways(WORLD_SEED, 1, cx, cz + 1)) {
+        anchors.add(cellIndex(col, last));
+        anchors.add(cellIndex(col, last - 1));
+      }
+
+      const originX = cx * CHUNK_SIZE * CELL_SIZE;
+      const originZ = cz * CHUNK_SIZE * CELL_SIZE;
+      for (const spawn of a.spawns) {
+        expect(a.cells[cellIndex(spawn.cellX, spawn.cellZ)]).toBe(CELL_OPEN);
+        expect(anchors.has(cellIndex(spawn.cellX, spawn.cellZ))).toBe(false);
+        const centerX = originX + (spawn.cellX + 0.5) * CELL_SIZE;
+        const centerZ = originZ + (spawn.cellZ + 0.5) * CELL_SIZE;
+        const onFurniture = a.furniture.some(
+          (piece) =>
+            piece.y === 0 &&
+            centerX >= piece.minX &&
+            centerX <= piece.maxX &&
+            centerZ >= piece.minZ &&
+            centerZ <= piece.maxZ,
+        );
+        expect(onFurniture).toBe(false);
+      }
+    }
+  });
+
+  it("produces spawns on levels with a populated spawn table", () => {
+    const total = [0, 1, 2, 3].reduce(
+      (sum, cx) => sum + generateChunk(WORLD_SEED, cx, 9, profile).spawns.length,
+      0,
+    );
+    expect(total).toBeGreaterThan(0);
   });
 });

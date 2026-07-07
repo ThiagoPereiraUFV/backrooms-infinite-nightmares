@@ -40,6 +40,15 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.45rem 0;
+  flex-wrap: wrap;
+}
+
+.fieldControls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .fieldLabel {
@@ -69,7 +78,7 @@
 
 .slider {
   appearance: none;
-  width: 9rem;
+  width: clamp(6rem, 40vw, 9rem);
   height: 4px;
   background: var(--accent-dim);
   cursor: pointer;
@@ -93,4 +102,30 @@
 .slider:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* Coarse pointers (touch) need >=44px targets; mouse keeps the compact size. */
+@media (pointer: coarse) {
+  .button {
+    min-height: 44px;
+    padding: 0.7rem 1.4rem;
+  }
+
+  .toggle {
+    min-height: 44px;
+  }
+
+  .slider {
+    height: 8px;
+  }
+
+  .slider::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+
+  .slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+  }
 }

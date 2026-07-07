@@ -91,4 +91,4 @@ Key decisions:
 - **The simulation is fixed-timestep** (120 Hz) and framerate-independent; the DOM HUD subscribes
   to ~10 Hz snapshots so React never taxes the render loop.
 
-See [PLAN.md](PLAN.md) for the full implementation plan.
+See [PLAN.md](docs/PLAN.md) for the full implementation plan.

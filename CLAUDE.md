@@ -6,7 +6,7 @@ Guidance for Claude Code when working in this repository.
 
 "Backrooms - Infinite Nightmares" — a 3D first-person Backrooms exploration game.
 Next.js 16 (App Router, static export) + React 19 + three.js via @react-three/fiber + zustand.
-Deployed to GitHub Pages on push to `main`. Full design rationale lives in [PLAN.md](PLAN.md).
+Deployed to GitHub Pages on push to `main`. Full design rationale lives in [PLAN.md](docs/PLAN.md).
 
 ## Commands
 

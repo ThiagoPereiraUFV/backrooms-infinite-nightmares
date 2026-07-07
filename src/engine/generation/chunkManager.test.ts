@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CELL_SIZE, CHUNK_WORLD_SIZE } from "@/config/constants";
-import { CELL_OPEN } from "./chunk";
+import { CELL_SIZE, CHUNK_SIZE, CHUNK_WORLD_SIZE, PILLAR_SCALE } from "@/config/constants";
+import { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex } from "./chunk";
 import { ChunkManager } from "./chunkManager";
 import { createLevelProfile } from "./levelProfile";
 
@@ -57,5 +57,106 @@ describe("ChunkManager", () => {
       const spawn = manager.findSpawn();
       expect(manager.cellAtWorld(spawn.x, spawn.z)).toBe(CELL_OPEN);
     }
+  });
+
+  describe("obstaclesIn", () => {
+    /** First cell of the given type in chunk (0,0), as world-space bounds. */
+    const findCell = (manager: ChunkManager, type: number) => {
+      const chunk = manager.getChunk(0, 0);
+      for (let z = 0; z < CHUNK_SIZE; z++) {
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          if (chunk.cells[cellIndex(x, z)] === type) return { x, z };
+        }
+      }
+      return null;
+    };
+
+    // Level 1 is pillar-field heavy, so chunk (0,0) reliably has both types.
+    const manager = new ChunkManager(1, createLevelProfile(1));
+
+    it("reports walls as full-cell AABBs", () => {
+      const cell = findCell(manager, CELL_WALL);
+      expect(cell).not.toBeNull();
+      const { x, z } = cell as { x: number; z: number };
+      const obstacles = manager.obstaclesIn(
+        x * CELL_SIZE,
+        (x + 1) * CELL_SIZE,
+        z * CELL_SIZE,
+        (z + 1) * CELL_SIZE,
+      );
+      expect(obstacles).toContainEqual({
+        minX: x * CELL_SIZE,
+        maxX: (x + 1) * CELL_SIZE,
+        minZ: z * CELL_SIZE,
+        maxZ: (z + 1) * CELL_SIZE,
+      });
+    });
+
+    it("reports pillars at their rendered sub-cell footprint", () => {
+      const cell = findCell(manager, CELL_PILLAR);
+      expect(cell).not.toBeNull();
+      const { x, z } = cell as { x: number; z: number };
+      const half = (CELL_SIZE * PILLAR_SCALE) / 2;
+      const centerX = (x + 0.5) * CELL_SIZE;
+      const centerZ = (z + 0.5) * CELL_SIZE;
+      const obstacles = manager.obstaclesIn(
+        centerX - 0.1,
+        centerX + 0.1,
+        centerZ - 0.1,
+        centerZ + 0.1,
+      );
+      expect(obstacles).toContainEqual({
+        minX: centerX - half,
+        maxX: centerX + half,
+        minZ: centerZ - half,
+        maxZ: centerZ + half,
+      });
+    });
+
+    it("returns nothing for a rect fully inside open cells", () => {
+      const spawn = manager.findSpawn();
+      // A tiny rect at the spawn cell center touches only that open cell.
+      const obstacles = manager.obstaclesIn(
+        spawn.x - 0.1,
+        spawn.x + 0.1,
+        spawn.z - 0.1,
+        spawn.z + 0.1,
+      );
+      expect(obstacles).toEqual([]);
+    });
+
+    it("includes furniture colliders for ground pieces", () => {
+      // Level 4 is the densest furniture level — find a chunk that has some.
+      const furnished = new ChunkManager(7, createLevelProfile(4));
+      for (let cx = 0; cx < 8; cx++) {
+        const chunk = furnished.getChunk(cx, 0);
+        const piece = chunk.furniture.find((candidate) => candidate.y === 0);
+        if (!piece) continue;
+        const obstacles = furnished.obstaclesIn(piece.minX, piece.maxX, piece.minZ, piece.maxZ);
+        expect(obstacles).toContainEqual({
+          minX: piece.minX,
+          maxX: piece.maxX,
+          minZ: piece.minZ,
+          maxZ: piece.maxZ,
+        });
+        return;
+      }
+      throw new Error("no furnished chunk found in sweep — placement likely broken");
+    });
+
+    it("spans chunk borders and negative coordinates", () => {
+      const obstacles = manager.obstaclesIn(
+        -CELL_SIZE * 2,
+        CELL_SIZE * 2,
+        -CELL_SIZE * 2,
+        CELL_SIZE * 2,
+      );
+      for (const obs of obstacles) {
+        expect(obs.maxX).toBeGreaterThan(obs.minX);
+        expect(obs.maxZ).toBeGreaterThan(obs.minZ);
+        expect(obs.maxX).toBeGreaterThanOrEqual(-CELL_SIZE * 2);
+        expect(obs.minX).toBeLessThanOrEqual(CELL_SIZE * 2);
+      }
+    });
   });
 });

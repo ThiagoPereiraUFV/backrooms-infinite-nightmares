@@ -36,6 +36,11 @@ describe("createLevelProfile", () => {
       expect(profile.decay).toBeLessThanOrEqual(1);
       expect(Number.isInteger(profile.lightSpacing)).toBe(true);
       expect(profile.lightSpacing).toBeGreaterThanOrEqual(3);
+      expect(profile.furnitureDensity).toBeGreaterThanOrEqual(0);
+      expect(profile.furnitureDensity).toBeLessThanOrEqual(1);
+      for (const weight of Object.values(profile.furnitureWeights)) {
+        expect(weight).toBeGreaterThanOrEqual(0);
+      }
       expect(profile.spawnTable).toEqual([]);
     }
   });
@@ -44,6 +49,11 @@ describe("createLevelProfile", () => {
     expect(createLevelProfile(0).name).toBe("The Lobby");
     expect(createLevelProfile(1).name).toBe("Habitable Zone");
     expect(createLevelProfile(6).name).toBe("Lights Out");
+    // The abandoned office is the furniture-dense level.
+    expect(createLevelProfile(4).furnitureDensity).toBeGreaterThan(
+      createLevelProfile(0).furnitureDensity,
+    );
+    expect(createLevelProfile(4).furnitureWeights.chair).toBeGreaterThan(0);
     // Level 6 is nearly pitch black with heavy fog.
     expect(createLevelProfile(6).lightIntensity).toBeLessThan(0.1);
     expect(createLevelProfile(6).fogDensity).toBeGreaterThan(0.1);

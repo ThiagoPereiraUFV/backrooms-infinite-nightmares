@@ -89,7 +89,7 @@ both.
     fixed step, so this is a ≤ 2×2 cell scan plus that cell range's furniture lists).
 - **Single source of truth**: add `PILLAR_SCALE = 0.4` to
   [constants.ts](../src/config/constants.ts); both `ChunkMesh` and `ChunkManager` consume it so
-  render and collision can never drift apart again (this drift *was* the bug).
+  render and collision can never drift apart again (this drift _was_ the bug).
 - `isSolidAt` remains for spawn-safety checks but is no longer the collision primitive.
 
 ### 2.3 Tests
@@ -250,7 +250,7 @@ The seams exist; this milestone fills them:
   already exists) on open non-anchor cells; item spawns avoid furniture-occupied space (or
   deliberately sit **on** tables/drawers — flat `stackable` tops make natural item shelves).
 - **Pickup**: proximity + look-at check in the fixed-timestep loop; picked items go to
-  `playerStore.inventory` (already modeled); number keys / click to use. Items are the *only*
+  `playerStore.inventory` (already modeled); number keys / click to use. Items are the _only_
   grabbable things — furniture stays inert by construction.
 - **Rendering**: small instanced meshes with a slow idle bob/spin; despawn on pickup.
 - **HUD**: fill the reserved hotbar slot layout from PLAN.md §7.
@@ -299,7 +299,7 @@ and adds the landscape requirement for gameplay.
 ### 6.2 Orientation gate (rotate-your-device advisory)
 
 - A `useViewportOrientation` hook (matchMedia `(orientation: portrait)`) drives a blocking
-  **RotateOverlay** shown only while the game phase is `playing`/`paused` *and* the viewport is
+  **RotateOverlay** shown only while the game phase is `playing`/`paused` _and_ the viewport is
   portrait: dimmed backdrop, animated rotate-phone glyph, "Rotate your device to play" in the
   game's flickering-fluorescent style.
 - While the overlay is up the simulation is suspended through the existing pause path (guarded
@@ -402,16 +402,16 @@ Rendered only for coarse-pointer devices during `playing`, as DOM overlays (belo
 
 ## 9. Implementation order
 
-| Milestone | Deliverable                                    | Depends on |
-| --------- | ---------------------------------------------- | ---------- |
-| **M8**    | Obstacle-AABB collider; pillar collision matches visuals | —          |
-| **M9**    | Furniture: catalog, deterministic placement, precise collision, instanced rendering | M8         |
-| **M10**   | Items: registry entries, spawn tables, pickup, hotbar HUD | M9 (spawn placement aware of furniture) |
-| **M11**   | First enemy through `EntitySystem`, difficulty-scaled damage | M8 (shared collision), M10 (spawn plumbing) |
-| **M12**   | Responsive UI everywhere; portrait rotate-device gate during play | —          |
-| **M13**   | Touch controls: input abstraction, auto-rotate, move pad, sprint, drag-look, pause button | M12 (orientation gate, responsive HUD) |
+| Milestone | Deliverable                                                                               | Depends on                                  |
+| --------- | ----------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **M8**    | Obstacle-AABB collider; pillar collision matches visuals                                  | —                                           |
+| **M9**    | Furniture: catalog, deterministic placement, precise collision, instanced rendering       | M8                                          |
+| **M10**   | Items: registry entries, spawn tables, pickup, hotbar HUD                                 | M9 (spawn placement aware of furniture)     |
+| **M11**   | First enemy through `EntitySystem`, difficulty-scaled damage                              | M8 (shared collision), M10 (spawn plumbing) |
+| **M12**   | Responsive UI everywhere; portrait rotate-device gate during play                         | —                                           |
+| **M13**   | Touch controls: input abstraction, auto-rotate, move pad, sprint, drag-look, pause button | M12 (orientation gate, responsive HUD)      |
 
-M8 goes first because it is a shipped defect *and* because its `ObstacleWorld` abstraction is the
+M8 goes first because it is a shipped defect _and_ because its `ObstacleWorld` abstraction is the
 foundation furniture and enemy collision both stand on. M12 is independent of the world-content
 track (M9–M11) and can land in parallel; M13 builds on M12's orientation gate and responsive HUD.
 
@@ -419,15 +419,15 @@ track (M9–M11) and can land in parallel; M13 builds on M12's orientation gate 
 
 ## 10. Risks & mitigations
 
-| Risk                                                         | Mitigation                                                                                       |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Collider refactor regresses wall feel                        | Wall AABBs remain full cells — existing collision tests must pass unmodified before pillar tests are added |
-| Furniture blocks guaranteed paths                            | Anchor-cell exclusion + walkable-gap fit test + sub-cell flood-fill safety net; drop pieces, never force-fit |
-| Yaw-jittered pieces snag the player on inflated AABB corners | Jitter capped at ±10°; escalation path to local-frame OBB test is isolated behind `ObstacleWorld` |
-| Draw-call growth from 8 furniture types × chunks             | One instanced mesh per type per chunk, merged geometries, skip empty types; measured perf gate on Level 4 |
-| Determinism drift (furniture differing between visits)       | Placement seeded from chunk seed + salt; deep-equality determinism tests across regenerate cycles |
-| Enemy pathing cost per frame                                 | Grid-based steering reusing chunk cells (no navmesh); entity count capped per difficulty          |
-| Orientation lock unsupported (iOS Safari rejects `orientation.lock`) | Lock attempted where available; rejection falls back to the M12 rotate-device overlay — advisory always works |
-| Browser gestures hijack look-drag (pull-to-refresh, back-swipe) | `touch-action: none` on the play surface, `overscroll-behavior: none`, `preventDefault` on tracked pointers |
-| Touch e2e flakiness across emulated devices                  | Pointer events tested at the unit/component layer; Playwright covers one canonical mobile profile only |
-| Input refactor regresses desktop feel                        | Keyboard+mouse path becomes an `InputSource` with behavior-identical output; existing movement tests and desktop e2e must pass unmodified |
+| Risk                                                                 | Mitigation                                                                                                                                |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Collider refactor regresses wall feel                                | Wall AABBs remain full cells — existing collision tests must pass unmodified before pillar tests are added                                |
+| Furniture blocks guaranteed paths                                    | Anchor-cell exclusion + walkable-gap fit test + sub-cell flood-fill safety net; drop pieces, never force-fit                              |
+| Yaw-jittered pieces snag the player on inflated AABB corners         | Jitter capped at ±10°; escalation path to local-frame OBB test is isolated behind `ObstacleWorld`                                         |
+| Draw-call growth from 8 furniture types × chunks                     | One instanced mesh per type per chunk, merged geometries, skip empty types; measured perf gate on Level 4                                 |
+| Determinism drift (furniture differing between visits)               | Placement seeded from chunk seed + salt; deep-equality determinism tests across regenerate cycles                                         |
+| Enemy pathing cost per frame                                         | Grid-based steering reusing chunk cells (no navmesh); entity count capped per difficulty                                                  |
+| Orientation lock unsupported (iOS Safari rejects `orientation.lock`) | Lock attempted where available; rejection falls back to the M12 rotate-device overlay — advisory always works                             |
+| Browser gestures hijack look-drag (pull-to-refresh, back-swipe)      | `touch-action: none` on the play surface, `overscroll-behavior: none`, `preventDefault` on tracked pointers                               |
+| Touch e2e flakiness across emulated devices                          | Pointer events tested at the unit/component layer; Playwright covers one canonical mobile profile only                                    |
+| Input refactor regresses desktop feel                                | Keyboard+mouse path becomes an `InputSource` with behavior-identical output; existing movement tests and desktop e2e must pass unmodified |

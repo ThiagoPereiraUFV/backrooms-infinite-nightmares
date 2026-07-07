@@ -1,13 +1,30 @@
-import { CELL_SIZE, CHUNK_CACHE_SIZE, CHUNK_SIZE, CHUNK_WORLD_SIZE } from "@/config/constants";
-import { CELL_OPEN, cellIndex, generateChunk, type Cell, type ChunkData } from "./chunk";
+import {
+  CELL_SIZE,
+  CHUNK_CACHE_SIZE,
+  CHUNK_SIZE,
+  CHUNK_WORLD_SIZE,
+  PILLAR_SCALE,
+} from "@/config/constants";
+import type { ObstacleAabb, ObstacleWorld } from "@/engine/player/collision";
+import {
+  CELL_OPEN,
+  CELL_PILLAR,
+  CELL_WALL,
+  cellIndex,
+  generateChunk,
+  type Cell,
+  type ChunkData,
+} from "./chunk";
 import type { LevelProfile } from "./levelProfile";
+
+const PILLAR_HALF_EXTENT = (CELL_SIZE * PILLAR_SCALE) / 2;
 
 /**
  * Generates chunks on demand and keeps a bounded LRU cache of their data
  * (plain typed arrays — meshes are the renderer's concern). Revisited areas
  * come back instantly; memory stays bounded no matter how far the player goes.
  */
-export class ChunkManager {
+export class ChunkManager implements ObstacleWorld {
   private readonly cache = new Map<string, ChunkData>();
 
   constructor(
@@ -61,6 +78,65 @@ export class ChunkManager {
 
   isSolidAt(worldX: number, worldZ: number): boolean {
     return this.cellAtWorld(worldX, worldZ) !== CELL_OPEN;
+  }
+
+  /**
+   * Collision obstacles overlapping the query rect. Walls fill their whole
+   * cell; pillars contribute only their rendered footprint (PILLAR_SCALE of
+   * the cell, centered) and furniture its placed AABB, so collision always
+   * matches what the player sees.
+   */
+  obstaclesIn(minX: number, maxX: number, minZ: number, maxZ: number): ObstacleAabb[] {
+    const obstacles: ObstacleAabb[] = [];
+    const cellMinX = Math.floor(minX / CELL_SIZE);
+    const cellMaxX = Math.floor(maxX / CELL_SIZE);
+    const cellMinZ = Math.floor(minZ / CELL_SIZE);
+    const cellMaxZ = Math.floor(maxZ / CELL_SIZE);
+    for (let cz = cellMinZ; cz <= cellMaxZ; cz++) {
+      for (let cx = cellMinX; cx <= cellMaxX; cx++) {
+        const cell = this.cellAtWorld((cx + 0.5) * CELL_SIZE, (cz + 0.5) * CELL_SIZE);
+        if (cell === CELL_WALL) {
+          obstacles.push({
+            minX: cx * CELL_SIZE,
+            maxX: (cx + 1) * CELL_SIZE,
+            minZ: cz * CELL_SIZE,
+            maxZ: (cz + 1) * CELL_SIZE,
+          });
+        } else if (cell === CELL_PILLAR) {
+          const centerX = (cx + 0.5) * CELL_SIZE;
+          const centerZ = (cz + 0.5) * CELL_SIZE;
+          obstacles.push({
+            minX: centerX - PILLAR_HALF_EXTENT,
+            maxX: centerX + PILLAR_HALF_EXTENT,
+            minZ: centerZ - PILLAR_HALF_EXTENT,
+            maxZ: centerZ + PILLAR_HALF_EXTENT,
+          });
+        }
+      }
+    }
+
+    // Furniture colliders from every chunk the rect touches. Stacked pieces
+    // (y > 0) sit inside their base's footprint and add no collider.
+    const chunkMinX = Math.floor(minX / CHUNK_WORLD_SIZE);
+    const chunkMaxX = Math.floor(maxX / CHUNK_WORLD_SIZE);
+    const chunkMinZ = Math.floor(minZ / CHUNK_WORLD_SIZE);
+    const chunkMaxZ = Math.floor(maxZ / CHUNK_WORLD_SIZE);
+    for (let cz = chunkMinZ; cz <= chunkMaxZ; cz++) {
+      for (let cx = chunkMinX; cx <= chunkMaxX; cx++) {
+        for (const piece of this.getChunk(cx, cz).furniture) {
+          if (piece.y > 0) continue;
+          if (piece.minX < maxX && piece.maxX > minX && piece.minZ < maxZ && piece.maxZ > minZ) {
+            obstacles.push({
+              minX: piece.minX,
+              maxX: piece.maxX,
+              minZ: piece.minZ,
+              maxZ: piece.maxZ,
+            });
+          }
+        }
+      }
+    }
+    return obstacles;
   }
 
   /**

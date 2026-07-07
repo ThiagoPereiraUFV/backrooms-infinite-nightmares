@@ -7,6 +7,13 @@ export const CHUNK_SIZE = 16;
 /** World-space size of one chunk in meters. */
 export const CHUNK_WORLD_SIZE = CELL_SIZE * CHUNK_SIZE;
 
+/**
+ * Pillar footprint as a fraction of its cell. Render and collision both
+ * derive from this — they must never disagree (that drift was the invisible
+ * -wall bug around pillars).
+ */
+export const PILLAR_SCALE = 0.4;
+
 /** Chunk ring radius rendered around the player (2 => 5x5 chunks). */
 export const VIEW_DISTANCE_CHUNKS = 2;
 

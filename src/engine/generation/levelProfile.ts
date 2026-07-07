@@ -41,6 +41,10 @@ export interface LevelProfile {
   /** Cells between ceiling light fixtures. */
   lightSpacing: number;
   ambience: AmbienceId;
+  /** 0..1 — expected furniture groups per open interior cell. */
+  furnitureDensity: number;
+  /** Furniture piece weights for this level (keys = furniture def ids). */
+  furnitureWeights: Record<string, number>;
   /** Phase 2: what can spawn in this level's chunks. Empty in MVP. */
   spawnTable: SpawnTableEntry[];
 }
@@ -174,6 +178,25 @@ const PALETTE_FAMILIES: PaletteFamily[] = [
   },
 ];
 
+// Furniture leanings per palette family — office families read as offices,
+// industrial families as storage, dreamcore as displaced bedrooms.
+const FAMILY_FURNITURE: Record<string, Record<string, number>> = {
+  yellowedOffice: {
+    chair: 3,
+    table: 2,
+    cabinet: 2,
+    bookshelf: 1,
+    drawer: 1,
+    couch: 0.5,
+    crate: 0.5,
+  },
+  concreteBrutal: { crate: 3, cabinet: 1, chair: 1, table: 0.5 },
+  industrialDark: { crate: 3, cabinet: 2, chair: 0.5, bookshelf: 0.5 },
+  dreamcorePastel: { couch: 2, bed: 2, chair: 1, table: 1, drawer: 1 },
+  weirdcoreSaturated: { chair: 2, couch: 1, table: 1, bookshelf: 1, crate: 1, bed: 0.5 },
+  bleachedLiminal: { chair: 1, table: 0.5, couch: 0.5 },
+};
+
 const NAME_ADJECTIVES = [
   "Endless",
   "Hollow",
@@ -226,6 +249,8 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     decay: 0.25,
     lightSpacing: 3,
     ambience: "fluorescentHum",
+    furnitureDensity: 0.02,
+    furnitureWeights: { chair: 2, table: 0.5, crate: 0.3 },
   },
   1: {
     name: "Habitable Zone",
@@ -239,6 +264,8 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     decay: 0.4,
     lightSpacing: 4,
     ambience: "deepDrone",
+    furnitureDensity: 0.015,
+    furnitureWeights: { crate: 3, cabinet: 0.5 },
   },
   2: {
     name: "Pipe Dreams",
@@ -252,6 +279,8 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     decay: 0.7,
     lightSpacing: 5,
     ambience: "deepDrone",
+    furnitureDensity: 0.02,
+    furnitureWeights: { crate: 3, cabinet: 1 },
   },
   3: {
     name: "Electrical Station",
@@ -265,6 +294,8 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     decay: 0.65,
     lightSpacing: 4,
     ambience: "fluorescentHum",
+    furnitureDensity: 0.03,
+    furnitureWeights: { cabinet: 3, crate: 2, chair: 0.5, table: 0.5 },
   },
   4: {
     name: "Abandoned Office",
@@ -278,6 +309,8 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     decay: 0.35,
     lightSpacing: 3,
     ambience: "nearSilence",
+    furnitureDensity: 0.1,
+    furnitureWeights: { chair: 4, table: 3, cabinet: 2, bookshelf: 1.5, drawer: 1, couch: 0.5 },
   },
   5: {
     name: "The Terror Hotel",
@@ -291,6 +324,8 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     decay: 0.55,
     lightSpacing: 4,
     ambience: "windHollow",
+    furnitureDensity: 0.07,
+    furnitureWeights: { bed: 3, drawer: 2, chair: 1, table: 1, couch: 1, bookshelf: 0.5 },
   },
   6: {
     name: "Lights Out",
@@ -311,6 +346,8 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     decay: 0.5,
     lightSpacing: 8,
     ambience: "nearSilence",
+    furnitureDensity: 0.01,
+    furnitureWeights: { chair: 1, crate: 1 },
   },
 };
 
@@ -344,6 +381,9 @@ export function createLevelProfile(level: number): LevelProfile {
     decay: clamp01(rng.range(0, 1)),
     lightSpacing: rng.int(3, 7),
     ambience: rng.pick<AmbienceId>(["fluorescentHum", "deepDrone", "windHollow", "nearSilence"]),
+    // Furniture rolls come last so adding them never reshuffled older traits.
+    furnitureDensity: rng.range(0.015, 0.08),
+    furnitureWeights: FAMILY_FURNITURE[family.name],
     spawnTable: [],
   };
 

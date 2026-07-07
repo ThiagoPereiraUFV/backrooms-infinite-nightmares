@@ -1,12 +1,10 @@
-import { CHUNK_SIZE } from "@/config/constants";
+import { CHUNK_SIZE, CHUNK_WORLD_SIZE } from "@/config/constants";
+import { placeFurniture, type FurniturePlacement } from "../furniture/placeFurniture";
+import { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex } from "./cells";
 import type { GeometryStyle, LevelProfile } from "./levelProfile";
 import { createRng, hashInts, pickWeighted, type Rng } from "./rng";
 
-export const CELL_OPEN = 0;
-export const CELL_WALL = 1;
-export const CELL_PILLAR = 2;
-
-export type Cell = typeof CELL_OPEN | typeof CELL_WALL | typeof CELL_PILLAR;
+export { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex, type Cell } from "./cells";
 
 /** Phase 2: a spawned world object (item/entity) anchored to a cell. */
 export interface ChunkSpawn {
@@ -22,11 +20,11 @@ export interface ChunkData {
   cells: Uint8Array;
   /** Cell indices that carry a ceiling light fixture. */
   lights: number[];
+  /** Static furniture placed in this chunk (world-space, deterministic). */
+  furniture: FurniturePlacement[];
   /** Phase 2: objects spawned in this chunk. Empty in MVP. */
   spawns: ChunkSpawn[];
 }
-
-export const cellIndex = (x: number, z: number): number => z * CHUNK_SIZE + x;
 
 const isSolid = (cells: Uint8Array, x: number, z: number): boolean =>
   cells[cellIndex(x, z)] !== CELL_OPEN;
@@ -246,5 +244,16 @@ export function generateChunk(
     }
   }
 
-  return { cx, cz, cells, lights, spawns: [] };
+  // Furniture pass: separately seeded so it can evolve without reshuffling
+  // the layout, and anchored to the same connectivity anchors it must respect.
+  const furniture = placeFurniture({
+    cells,
+    anchors,
+    rng: createRng(hashInts(worldSeed, cx, cz, 0xfa57)),
+    profile,
+    originX: cx * CHUNK_WORLD_SIZE,
+    originZ: cz * CHUNK_WORLD_SIZE,
+  });
+
+  return { cx, cz, cells, lights, furniture, spawns: [] };
 }

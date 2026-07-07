@@ -2,9 +2,11 @@
 
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { CELL_SIZE, CHUNK_SIZE, CHUNK_WORLD_SIZE } from "@/config/constants";
+import { CELL_SIZE, CHUNK_SIZE, CHUNK_WORLD_SIZE, PILLAR_SCALE } from "@/config/constants";
+import { furnitureRegistry } from "@/engine/furniture/catalog";
 import { CELL_PILLAR, CELL_WALL, type ChunkData } from "@/engine/generation/chunk";
 import type { LevelProfile } from "@/engine/generation/levelProfile";
+import { furnitureGeometry } from "./furnitureGeometry";
 import type { LevelMaterials } from "./levelMaterials";
 
 // Shared unit geometries (flyweight) — instances scale them per use, so the
@@ -20,7 +22,12 @@ interface InstancePlacement {
 const buildPlacements = (
   chunk: ChunkData,
   ceilingHeight: number,
-): { walls: InstancePlacement; pillars: InstancePlacement; lights: InstancePlacement } => {
+): {
+  walls: InstancePlacement;
+  pillars: InstancePlacement;
+  lights: InstancePlacement;
+  furniture: Map<string, InstancePlacement>;
+} => {
   const walls: THREE.Matrix4[] = [];
   const pillars: THREE.Matrix4[] = [];
   const lights: THREE.Matrix4[] = [];
@@ -34,10 +41,11 @@ const buildPlacements = (
     sy: number,
     sz: number,
     rotX = 0,
+    rotY = 0,
   ): THREE.Matrix4 =>
     new THREE.Matrix4().compose(
       new THREE.Vector3(x, y, z),
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(rotX, 0, 0)),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(rotX, rotY, 0)),
       new THREE.Vector3(sx, sy, sz),
     );
 
@@ -54,9 +62,9 @@ const buildPlacements = (
             worldX,
             ceilingHeight / 2,
             worldZ,
-            CELL_SIZE * 0.4,
+            CELL_SIZE * PILLAR_SCALE,
             ceilingHeight,
-            CELL_SIZE * 0.4,
+            CELL_SIZE * PILLAR_SCALE,
           ),
         );
       }
@@ -79,10 +87,23 @@ const buildPlacements = (
     );
   }
 
+  // Furniture: geometries are already true-size, so scale stays 1 and the
+  // instance matrix carries only the placement position and yaw.
+  const furniture = new Map<string, InstancePlacement>();
+  for (const piece of chunk.furniture) {
+    let group = furniture.get(piece.defId);
+    if (!group) {
+      group = { matrices: [] };
+      furniture.set(piece.defId, group);
+    }
+    group.matrices.push(compose(piece.x, piece.y, piece.z, 1, 1, 1, 0, piece.yaw));
+  }
+
   return {
     walls: { matrices: walls },
     pillars: { matrices: pillars },
     lights: { matrices: lights },
+    furniture,
   };
 };
 
@@ -161,6 +182,18 @@ export function ChunkMesh({ chunk, profile, materials }: ChunkMeshProps) {
         material={materials.lightFixture}
         placement={placements.lights}
       />
+      {[...placements.furniture.entries()].map(([defId, placement]) => (
+        <Instances
+          key={defId}
+          geometry={furnitureGeometry(defId)}
+          material={
+            furnitureRegistry.get(defId)?.materialRole === "fabric"
+              ? materials.furnitureFabric
+              : materials.furnitureWood
+          }
+          placement={placement}
+        />
+      ))}
     </group>
   );
 }

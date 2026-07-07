@@ -9,6 +9,8 @@ export interface LevelMaterials {
   floor: THREE.Material;
   ceiling: THREE.Material;
   lightFixture: THREE.Material;
+  furnitureWood: THREE.Material;
+  furnitureFabric: THREE.Material;
 }
 
 /**
@@ -26,12 +28,24 @@ export function useLevelMaterials(profile: LevelProfile): LevelMaterials {
     const ceilingTexture = createCeilingTexture(profile.palette, profile.decay);
     ceilingTexture.repeat.set(CHUNK_SIZE, CHUNK_SIZE);
 
+    // Furniture tints sit in the level's color world: the palette accent
+    // pulled toward wood/fabric tones, darkened by decay.
+    const decayShade = 1 - profile.decay * 0.3;
+    const wood = new THREE.Color(profile.palette.accent)
+      .lerp(new THREE.Color("#6b4a2f"), 0.6)
+      .multiplyScalar(decayShade);
+    const fabric = new THREE.Color(profile.palette.accent)
+      .lerp(new THREE.Color("#7a7268"), 0.35)
+      .multiplyScalar(decayShade);
+
     return {
       wall: new THREE.MeshLambertMaterial({ map: wallTexture }),
       floor: new THREE.MeshLambertMaterial({ map: floorTexture }),
       ceiling: new THREE.MeshLambertMaterial({ map: ceilingTexture }),
       // Basic material: fixtures glow regardless of scene light.
       lightFixture: new THREE.MeshBasicMaterial({ color: profile.palette.light }),
+      furnitureWood: new THREE.MeshLambertMaterial({ color: wood }),
+      furnitureFabric: new THREE.MeshLambertMaterial({ color: fabric }),
     };
   }, [profile]);
 

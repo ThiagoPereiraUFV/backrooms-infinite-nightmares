@@ -243,7 +243,7 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
     name: "The Lobby",
     palette: PALETTE_FAMILIES[0].palettes[0],
     styleWeights: { pillarField: 3, maze: 4, rooms: 2, halls: 1 },
-    wallDensity: 0.32,
+    wallDensity: 1,
     ceilingHeight: 3,
     fogDensity: 0.055,
     lightIntensity: 0.85,

@@ -153,6 +153,20 @@ export default function GameRoot() {
     }
   }, []);
 
+  // "P" pauses like Esc. Releasing pointer lock (when held) reuses the exact
+  // Esc flow — the unlock event drives the phase transition — so the two keys
+  // can never diverge; without a lock (touch) the handler is called directly.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "KeyP") return;
+      if (useGameStore.getState().phase !== "playing") return;
+      if (document.pointerLockElement) document.exitPointerLock();
+      else onUnlock();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onUnlock]);
+
   const quit = () => {
     audioRef.current.playUiClick();
     useGameStore.getState().quitToMenu();
@@ -191,7 +205,7 @@ export default function GameRoot() {
           <p className={styles.overlayHint}>
             {isCoarsePointer
               ? "Joystick to move · Drag to look · Hold Run to sprint · Pause button top-right"
-              : "Arrows / WASD to move · Mouse to look · Shift to run · Esc to pause"}
+              : "Arrows / WASD to move · Mouse to look · Shift to run · Esc or P to pause"}
           </p>
           <Button variant="primary" onClick={enter} data-testid="enter-game">
             Enter

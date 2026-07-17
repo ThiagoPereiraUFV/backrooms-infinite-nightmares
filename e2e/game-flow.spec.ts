@@ -103,3 +103,17 @@ test("pointer lock enters the game and Esc pauses it", async ({ page, browserNam
   await page.getByTestId("quit-to-menu").click();
   await expect(page).toHaveURL(/\/menu\/?$/);
 });
+
+test("P pauses the game like Esc", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "pointer lock is only reliable in chromium headless");
+  await page.goto("menu/");
+  await page.getByTestId("start-game").click();
+  await expect(page.getByTestId("enter-game")).toBeVisible();
+  await page.getByTestId("enter-game").click();
+  await expect(page.getByTestId("enter-overlay")).not.toBeVisible({ timeout: 10_000 });
+
+  // Unlike synthesized Esc, a synthesized P reaches the window listener, which
+  // releases the (real) pointer lock itself — so this works headless.
+  await page.keyboard.press("KeyP");
+  await expect(page.getByTestId("pause-menu")).toBeVisible();
+});

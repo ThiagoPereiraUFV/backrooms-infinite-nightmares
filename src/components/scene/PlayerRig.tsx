@@ -338,6 +338,11 @@ export function PlayerRig({
       <instancedMesh
         ref={enemyMeshRef}
         args={[ENEMY_GEOMETRY, ENEMY_MATERIAL, MAX_ACTIVE_ENTITIES]}
+        // Instances follow the player far from the origin, but three caches the
+        // InstancedMesh bounding sphere from the first render (count 0 → empty
+        // sphere), which culls the mesh forever. Only MAX_ACTIVE_ENTITIES boxes,
+        // so skipping culling is free.
+        frustumCulled={false}
         dispose={null}
       />
     </>

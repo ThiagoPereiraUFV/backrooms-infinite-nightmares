@@ -76,9 +76,14 @@ export default function GameRoot() {
 
   // Deep-linking directly to /play: walk the store into "loading" legally.
   useEffect(() => {
-    const game = useGameStore.getState();
-    if (game.phase === "splash") game.transition("menu");
-    if (game.phase === "menu") game.startGame();
+    // getState() snapshots are immutable — re-read between steps or the
+    // second check sees the pre-transition phase and startGame never runs.
+    if (useGameStore.getState().phase === "splash") {
+      useGameStore.getState().transition("menu");
+    }
+    if (useGameStore.getState().phase === "menu") {
+      useGameStore.getState().startGame();
+    }
   }, []);
 
   // No save games: every session starts with nothing collected.

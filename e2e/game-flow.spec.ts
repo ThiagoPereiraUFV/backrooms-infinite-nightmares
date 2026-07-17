@@ -70,6 +70,21 @@ test("play -> menu -> play again does not leak or crash (context reboot)", async
   expect(errors).toEqual([]);
 });
 
+test("deep link / refresh on play lands on the enter overlay, not a frozen world", async ({
+  page,
+}) => {
+  const errors = collectPageErrors(page);
+  // Direct load of /play (same as a mid-game refresh) must walk the phase
+  // machine all the way to "loading" — stalling at "menu" renders the world
+  // with no overlay and a simulation that never starts.
+  await page.goto("play/");
+  await expect(page.getByTestId("enter-overlay")).toBeVisible({ timeout: 20_000 });
+
+  await page.reload();
+  await expect(page.getByTestId("enter-overlay")).toBeVisible({ timeout: 20_000 });
+  expect(errors).toEqual([]);
+});
+
 test("pointer lock enters the game and Esc pauses it", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium", "pointer lock is only reliable in chromium headless");
   await page.goto("menu/");

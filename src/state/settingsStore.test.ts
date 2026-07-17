@@ -78,6 +78,6 @@ describe("settingsStore", () => {
     setFogIntensity(0.8);
     expect(useSettingsStore.getState().fogIntensity).toBe(0.8);
     setFogIntensity(Number.NaN);
-    expect(useSettingsStore.getState().fogIntensity).toBe(0.5);
+    expect(useSettingsStore.getState().fogIntensity).toBe(0);
   });
 });

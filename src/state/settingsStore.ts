@@ -15,6 +15,8 @@ export interface SettingsState {
   mode: GameMode;
   /** Touch drag-look sensitivity multiplier (mobile only). */
   touchLookSensitivity: number;
+  /** 0..1 fog amount — 0 disables fog, 0.5 is the level's designed density, 1 doubles it. */
+  fogIntensity: number;
   setLevel(level: number): void;
   setDifficulty(difficulty: Difficulty): void;
   setMusicEnabled(enabled: boolean): void;
@@ -22,6 +24,7 @@ export interface SettingsState {
   setSfxEnabled(enabled: boolean): void;
   setSfxVolume(volume: number): void;
   setTouchLookSensitivity(sensitivity: number): void;
+  setFogIntensity(intensity: number): void;
 }
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -38,6 +41,11 @@ const MAX_TOUCH_SENSITIVITY = 3;
 const clampTouchSensitivity = (value: number): number =>
   Number.isFinite(value) ? clamp(value, MIN_TOUCH_SENSITIVITY, MAX_TOUCH_SENSITIVITY) : 1;
 
+const DEFAULT_FOG_INTENSITY = 0.0;
+
+const clampFogIntensity = (value: number): number =>
+  Number.isFinite(value) ? clamp(value, 0, 1) : DEFAULT_FOG_INTENSITY;
+
 const DEFAULTS = {
   level: 0,
   difficulty: "peaceful" as Difficulty,
@@ -47,6 +55,7 @@ const DEFAULTS = {
   sfxVolume: 0.8,
   mode: "single" as GameMode,
   touchLookSensitivity: 1,
+  fogIntensity: DEFAULT_FOG_INTENSITY,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -62,6 +71,7 @@ export const useSettingsStore = create<SettingsState>()(
       setSfxVolume: (sfxVolume) => set({ sfxVolume: clampVolume(sfxVolume) }),
       setTouchLookSensitivity: (touchLookSensitivity) =>
         set({ touchLookSensitivity: clampTouchSensitivity(touchLookSensitivity) }),
+      setFogIntensity: (fogIntensity) => set({ fogIntensity: clampFogIntensity(fogIntensity) }),
     }),
     {
       name: "bin-settings",
@@ -82,6 +92,7 @@ export const useSettingsStore = create<SettingsState>()(
           touchLookSensitivity: clampTouchSensitivity(
             raw.touchLookSensitivity ?? DEFAULTS.touchLookSensitivity,
           ),
+          fogIntensity: clampFogIntensity(raw.fogIntensity ?? DEFAULTS.fogIntensity),
           // Multiplayer is "soon": never rehydrate into an unsupported mode.
           mode: "single",
         };

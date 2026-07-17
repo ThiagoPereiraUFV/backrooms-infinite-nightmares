@@ -157,6 +157,9 @@ export function GameScene({
   const chunks = useVisibleChunks(manager);
   const difficulty = useSettingsStore((state) => state.difficulty);
   const itemScarcity = DIFFICULTY_CONFIGS[difficulty].itemScarcity;
+  // User fog setting: 0 → no fog, 0.5 → the level's designed density, 1 → double.
+  const fogIntensity = useSettingsStore((state) => state.fogIntensity);
+  const fogDensity = profile.fogDensity * fogIntensity * 2;
 
   return (
     <Canvas
@@ -166,7 +169,7 @@ export function GameScene({
       style={{ position: "absolute", inset: 0 }}
     >
       <color attach="background" args={[profile.palette.fog]} />
-      <fogExp2 attach="fog" args={[profile.palette.fog, profile.fogDensity]} />
+      <fogExp2 attach="fog" args={[profile.palette.fog, fogDensity]} />
       <LevelLighting profile={profile} />
       <PlayerLamp profile={profile} />
       <FlashlightBeam />

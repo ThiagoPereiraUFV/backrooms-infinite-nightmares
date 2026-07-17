@@ -17,6 +17,7 @@ describe("SettingsPanel", () => {
       sfxVolume: 0.8,
       mode: "single",
       touchLookSensitivity: 1,
+      fogIntensity: 0.5,
     });
   });
 
@@ -63,6 +64,15 @@ describe("SettingsPanel", () => {
     await user.click(screen.getByRole("switch", { name: "Music" }));
     expect(useSettingsStore.getState().musicEnabled).toBe(false);
     expect(screen.getByRole("slider", { name: "Music volume" })).toBeDisabled();
+  });
+
+  it("updates fog intensity from the slider", () => {
+    render(<SettingsPanel />);
+    const slider = screen.getByRole("slider", { name: "Fog intensity" });
+    fireEvent.change(slider, { target: { value: "0" } });
+    expect(useSettingsStore.getState().fogIntensity).toBe(0);
+    fireEvent.change(slider, { target: { value: "1" } });
+    expect(useSettingsStore.getState().fogIntensity).toBe(1);
   });
 
   it("hides level and mode controls in compact mode (pause menu)", () => {

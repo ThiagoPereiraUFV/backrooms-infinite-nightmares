@@ -14,6 +14,7 @@ describe("settingsStore", () => {
       sfxVolume: 0.8,
       mode: "single",
       touchLookSensitivity: 1,
+      fogIntensity: 0.5,
     });
   });
 
@@ -66,5 +67,17 @@ describe("settingsStore", () => {
     expect(useSettingsStore.getState().touchLookSensitivity).toBe(1.5);
     setTouchLookSensitivity(Number.NaN);
     expect(useSettingsStore.getState().touchLookSensitivity).toBe(1);
+  });
+
+  it("clamps fog intensity into 0..1", () => {
+    const { setFogIntensity } = useSettingsStore.getState();
+    setFogIntensity(-0.5);
+    expect(useSettingsStore.getState().fogIntensity).toBe(0);
+    setFogIntensity(3);
+    expect(useSettingsStore.getState().fogIntensity).toBe(1);
+    setFogIntensity(0.8);
+    expect(useSettingsStore.getState().fogIntensity).toBe(0.8);
+    setFogIntensity(Number.NaN);
+    expect(useSettingsStore.getState().fogIntensity).toBe(0.5);
   });
 });

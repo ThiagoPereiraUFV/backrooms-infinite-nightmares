@@ -86,6 +86,14 @@ export function SettingsPanel({ compact = false }: SettingsPanelProps) {
         </select>
       </Field>
 
+      <Field label="Fog">
+        <Slider
+          label="Fog intensity"
+          value={settings.fogIntensity}
+          onChange={settings.setFogIntensity}
+        />
+      </Field>
+
       <Field label="Music">
         <Toggle label="Music" checked={settings.musicEnabled} onChange={settings.setMusicEnabled} />
         <Slider

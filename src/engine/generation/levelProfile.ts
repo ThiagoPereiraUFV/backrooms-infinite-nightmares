@@ -1,4 +1,21 @@
-import { createRng, hashInts } from "./rng";
+/**
+ * The Main Nine — the only playable levels, verified against the Backrooms
+ * wiki (backrooms.fandom.com/wiki/Category:The_Main_Nine). Order defines menu
+ * order. Every profile is authored in full: there is no derivation, so a
+ * missing field is a compile error rather than a silent RNG roll.
+ *
+ * | Level | Name               |
+ * | ----- | ------------------ |
+ * | 0     | The Lobby          |
+ * | 1     | Parking Zone       |
+ * | 2     | Pipe Dreams        |
+ * | 3     | Electrical Station |
+ * | 4     | Abandoned Office   |
+ * | 5     | The Terror Hotel   |
+ * | 6     | Lights Out         |
+ * | 7     | Thalassophobia     |
+ * | 8     | Cave System        |
+ */
 
 /** How a level's chunks are predominantly laid out. */
 export type GeometryStyle = "pillarField" | "maze" | "rooms" | "halls";
@@ -51,197 +68,95 @@ export interface LevelProfile {
   spawnTable: SpawnTableEntry[];
 }
 
-interface PaletteFamily {
-  name: string;
-  palettes: LevelPalette[];
-}
+// Named palettes, one per aesthetic actually used by a roster entry below —
+// referencing `PALETTE_FAMILIES[2].palettes[1]` was unreadable, so each
+// retained/new level's look now has a name that says what it is.
 
-// Aesthetic pillars mapped to palette families: retro/dated (yellowed office),
-// brutalism (concrete), dreamcore (washed pastels), weirdcore (off-key saturation),
-// decay (dark industrial), liminal (bleached monotone).
-const PALETTE_FAMILIES: PaletteFamily[] = [
-  {
-    name: "yellowedOffice",
-    palettes: [
-      {
-        wall: "#b8a758",
-        floor: "#8a7f4e",
-        ceiling: "#c9c3a0",
-        accent: "#9c8c3f",
-        fog: "#a99c55",
-        light: "#fff6c9",
-      },
-      {
-        wall: "#c2b268",
-        floor: "#96884f",
-        ceiling: "#d1cba8",
-        accent: "#a89a4a",
-        fog: "#b3a660",
-        light: "#fff9d6",
-      },
-    ],
-  },
-  {
-    name: "concreteBrutal",
-    palettes: [
-      {
-        wall: "#8d8d88",
-        floor: "#6f6f6a",
-        ceiling: "#7c7c78",
-        accent: "#5d5d58",
-        fog: "#77776f",
-        light: "#e8e8dc",
-      },
-      {
-        wall: "#9a948c",
-        floor: "#726d64",
-        ceiling: "#84807a",
-        accent: "#4d4a44",
-        fog: "#6e6a60",
-        light: "#f2ede0",
-      },
-    ],
-  },
-  {
-    name: "industrialDark",
-    palettes: [
-      {
-        wall: "#4a4d44",
-        floor: "#33352f",
-        ceiling: "#3d3f38",
-        accent: "#5f6353",
-        fog: "#2c2e28",
-        light: "#cfd6b8",
-      },
-      {
-        wall: "#474038",
-        floor: "#2f2b26",
-        ceiling: "#3a352e",
-        accent: "#635a4c",
-        fog: "#262220",
-        light: "#e0cfa8",
-      },
-    ],
-  },
-  {
-    name: "dreamcorePastel",
-    palettes: [
-      {
-        wall: "#b9c8d6",
-        floor: "#9aa8b5",
-        ceiling: "#cdd8e2",
-        accent: "#d6b9c8",
-        fog: "#aebccb",
-        light: "#f0f6ff",
-      },
-      {
-        wall: "#cfc3d9",
-        floor: "#a89cb3",
-        ceiling: "#ded4e6",
-        accent: "#b3d9c3",
-        fog: "#bfb3cc",
-        light: "#faf2ff",
-      },
-    ],
-  },
-  {
-    name: "weirdcoreSaturated",
-    palettes: [
-      {
-        wall: "#7a9e6b",
-        floor: "#5d7a51",
-        ceiling: "#94b585",
-        accent: "#b56b94",
-        fog: "#6d8f5f",
-        light: "#eaffde",
-      },
-      {
-        wall: "#9e6b7a",
-        floor: "#7a515d",
-        ceiling: "#b58594",
-        accent: "#6b949e",
-        fog: "#8f5f6d",
-        light: "#ffdeea",
-      },
-    ],
-  },
-  {
-    name: "bleachedLiminal",
-    palettes: [
-      {
-        wall: "#d6d2c4",
-        floor: "#b5b1a4",
-        ceiling: "#e2ded1",
-        accent: "#c4bfae",
-        fog: "#ccc8ba",
-        light: "#fffdf2",
-      },
-    ],
-  },
-];
-
-// Furniture leanings per palette family — office families read as offices,
-// industrial families as storage, dreamcore as displaced bedrooms.
-const FAMILY_FURNITURE: Record<string, Record<string, number>> = {
-  yellowedOffice: {
-    chair: 3,
-    table: 2,
-    cabinet: 2,
-    bookshelf: 1,
-    drawer: 1,
-    couch: 0.5,
-    crate: 0.5,
-  },
-  concreteBrutal: { crate: 3, cabinet: 1, chair: 1, table: 0.5 },
-  industrialDark: { crate: 3, cabinet: 2, chair: 0.5, bookshelf: 0.5 },
-  dreamcorePastel: { couch: 2, bed: 2, chair: 1, table: 1, drawer: 1 },
-  weirdcoreSaturated: { chair: 2, couch: 1, table: 1, bookshelf: 1, crate: 1, bed: 0.5 },
-  bleachedLiminal: { chair: 1, table: 0.5, couch: 0.5 },
+const YELLOWED_OFFICE: LevelPalette = {
+  wall: "#b8a758",
+  floor: "#8a7f4e",
+  ceiling: "#c9c3a0",
+  accent: "#9c8c3f",
+  fog: "#a99c55",
+  light: "#fff6c9",
 };
 
-const NAME_ADJECTIVES = [
-  "Endless",
-  "Hollow",
-  "Silent",
-  "Buzzing",
-  "Forgotten",
-  "Sunken",
-  "Bleached",
-  "Crooked",
-  "Vacant",
-  "Humming",
-  "Stale",
-  "Flooded",
-  "Fractured",
-  "Sleepless",
-  "Wandering",
-  "Faded",
-];
+const CONCRETE_BRUTAL: LevelPalette = {
+  wall: "#8d8d88",
+  floor: "#6f6f6a",
+  ceiling: "#7c7c78",
+  accent: "#5d5d58",
+  fog: "#77776f",
+  light: "#e8e8dc",
+};
 
-const NAME_NOUNS = [
-  "Offices",
-  "Halls",
-  "Corridors",
-  "Complex",
-  "Wing",
-  "Sublevel",
-  "Annex",
-  "Storerooms",
-  "Concourse",
-  "Passages",
-  "Chambers",
-  "Terminals",
-  "Galleries",
-  "Warrens",
-  "Foyers",
-  "Basements",
-];
+const INDUSTRIAL_DARK_MOSS: LevelPalette = {
+  wall: "#4a4d44",
+  floor: "#33352f",
+  ceiling: "#3d3f38",
+  accent: "#5f6353",
+  fog: "#2c2e28",
+  light: "#cfd6b8",
+};
 
-/** Hand-tuned canonical levels where Backrooms lore expects specific looks. */
-const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
-  0: {
+const INDUSTRIAL_DARK_RUST: LevelPalette = {
+  wall: "#474038",
+  floor: "#2f2b26",
+  ceiling: "#3a352e",
+  accent: "#635a4c",
+  fog: "#262220",
+  light: "#e0cfa8",
+};
+
+const BLEACHED_LIMINAL: LevelPalette = {
+  wall: "#d6d2c4",
+  floor: "#b5b1a4",
+  ceiling: "#e2ded1",
+  accent: "#c4bfae",
+  fog: "#ccc8ba",
+  light: "#fffdf2",
+};
+
+const LIGHTS_OUT_BLACK: LevelPalette = {
+  wall: "#1c1c20",
+  floor: "#121214",
+  ceiling: "#17171a",
+  accent: "#26262c",
+  fog: "#0a0a0c",
+  light: "#3a3a44",
+};
+
+// Flooded industrial teal — Level 7 "Thalassophobia": waterlogged concrete
+// under a dim, water-reflected glow.
+const FLOODED_DEPTHS: LevelPalette = {
+  wall: "#2e4a4a",
+  floor: "#1c3333",
+  ceiling: "#33504d",
+  accent: "#3f6b63",
+  fog: "#1a2e2c",
+  light: "#a8d8cc",
+};
+
+// Damp rock — Level 8 "Cave System": natural stone, warm faint glow instead
+// of fluorescents.
+const CAVE_STONE: LevelPalette = {
+  wall: "#5c5347",
+  floor: "#3f382e",
+  ceiling: "#4a4238",
+  accent: "#6b5f4e",
+  fog: "#2b2620",
+  light: "#c9b896",
+};
+
+/**
+ * The Main Nine, in full. Every field is authored — there is no fallback
+ * derivation, so TypeScript rejects a level literal that forgets a field.
+ */
+export const LEVELS: readonly LevelProfile[] = [
+  {
+    level: 0,
     name: "The Lobby",
-    palette: PALETTE_FAMILIES[0].palettes[0],
+    palette: YELLOWED_OFFICE,
     styleWeights: { pillarField: 3, maze: 4, rooms: 2, halls: 1 },
     wallDensity: 1,
     ceilingHeight: 3,
@@ -261,9 +176,10 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
       { id: "wanderer", weight: 0.3 },
     ],
   },
-  1: {
-    name: "Habitable Zone",
-    palette: PALETTE_FAMILIES[1].palettes[0],
+  {
+    level: 1,
+    name: "Parking Zone",
+    palette: CONCRETE_BRUTAL,
     styleWeights: { pillarField: 5, maze: 1, rooms: 1, halls: 2 },
     wallDensity: 0.18,
     ceilingHeight: 4.5,
@@ -283,9 +199,10 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
       { id: "wanderer", weight: 0.4 },
     ],
   },
-  2: {
+  {
+    level: 2,
     name: "Pipe Dreams",
-    palette: PALETTE_FAMILIES[2].palettes[0],
+    palette: INDUSTRIAL_DARK_MOSS,
     styleWeights: { pillarField: 0, maze: 3, rooms: 1, halls: 6 },
     wallDensity: 0.55,
     ceilingHeight: 2.6,
@@ -305,9 +222,10 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
       { id: "wanderer", weight: 0.8 },
     ],
   },
-  3: {
+  {
+    level: 3,
     name: "Electrical Station",
-    palette: PALETTE_FAMILIES[2].palettes[1],
+    palette: INDUSTRIAL_DARK_RUST,
     styleWeights: { pillarField: 2, maze: 3, rooms: 3, halls: 2 },
     wallDensity: 0.45,
     ceilingHeight: 3.4,
@@ -327,9 +245,10 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
       { id: "wanderer", weight: 0.9 },
     ],
   },
-  4: {
+  {
+    level: 4,
     name: "Abandoned Office",
-    palette: PALETTE_FAMILIES[5].palettes[0],
+    palette: BLEACHED_LIMINAL,
     styleWeights: { pillarField: 1, maze: 2, rooms: 6, halls: 2 },
     wallDensity: 0.4,
     ceilingHeight: 2.9,
@@ -349,9 +268,10 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
       { id: "wanderer", weight: 0.5 },
     ],
   },
-  5: {
+  {
+    level: 5,
     name: "The Terror Hotel",
-    palette: PALETTE_FAMILIES[2].palettes[1],
+    palette: INDUSTRIAL_DARK_RUST,
     styleWeights: { pillarField: 0, maze: 2, rooms: 4, halls: 6 },
     wallDensity: 0.6,
     ceilingHeight: 3.1,
@@ -371,16 +291,10 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
       { id: "wanderer", weight: 1 },
     ],
   },
-  6: {
+  {
+    level: 6,
     name: "Lights Out",
-    palette: {
-      wall: "#1c1c20",
-      floor: "#121214",
-      ceiling: "#17171a",
-      accent: "#26262c",
-      fog: "#0a0a0c",
-      light: "#3a3a44",
-    },
+    palette: LIGHTS_OUT_BLACK,
     styleWeights: { pillarField: 1, maze: 4, rooms: 2, halls: 3 },
     wallDensity: 0.5,
     ceilingHeight: 2.8,
@@ -400,51 +314,71 @@ const CANONICAL_LEVELS: Record<number, Partial<LevelProfile>> = {
       { id: "wanderer", weight: 1.8 },
     ],
   },
-};
+  {
+    // Aquatic/flooded theme per the wiki: endless net of flooded industrial
+    // corridors, water rising and falling, a deep waterborne hum.
+    level: 7,
+    name: "Thalassophobia",
+    palette: FLOODED_DEPTHS,
+    styleWeights: { pillarField: 2, maze: 2, rooms: 1, halls: 5 },
+    wallDensity: 0.35,
+    ceilingHeight: 4,
+    fogDensity: 0.1,
+    lightIntensity: 0.3,
+    flickerAmount: 0.3,
+    decay: 0.6,
+    lightSpacing: 5,
+    ambience: "deepDrone",
+    furnitureDensity: 0.02,
+    furnitureWeights: { crate: 2, cabinet: 1 },
+    itemSpawnDensity: 0.012,
+    spawnTable: [
+      { id: "bandage", weight: 1.2 },
+      { id: "adrenaline", weight: 1 },
+      { id: "flashlight", weight: 0.5 },
+      { id: "wanderer", weight: 0.7 },
+    ],
+  },
+  {
+    // Cave theme per the wiki: natural rock, tight and winding, sparse light
+    // sources, echoing near-silence rather than machine hum.
+    level: 8,
+    name: "Cave System",
+    palette: CAVE_STONE,
+    styleWeights: { pillarField: 1, maze: 6, rooms: 1, halls: 2 },
+    wallDensity: 0.65,
+    ceilingHeight: 3.2,
+    fogDensity: 0.08,
+    lightIntensity: 0.25,
+    flickerAmount: 0.1,
+    decay: 0.3,
+    lightSpacing: 6,
+    ambience: "nearSilence",
+    furnitureDensity: 0.005,
+    furnitureWeights: { crate: 1, cabinet: 0.3 },
+    itemSpawnDensity: 0.015,
+    spawnTable: [
+      { id: "bandage", weight: 1.3 },
+      { id: "adrenaline", weight: 1 },
+      { id: "flashlight", weight: 0.6 },
+      { id: "wanderer", weight: 0.6 },
+    ],
+  },
+];
 
-const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+const LEVELS_BY_NUMBER: ReadonlyMap<number, LevelProfile> = new Map(
+  LEVELS.map((profile) => [profile.level, profile]),
+);
 
 /**
- * Derives the full characteristic set for a level from its number alone.
- * Canonical levels override the derived traits; every level in 0..999 is valid.
+ * Looks up an authored level by its lore number. Throws on a number outside
+ * the roster — a bug (unvalidated caller), not bad input; validation belongs
+ * at the boundary (`settingsStore`), not here.
  */
-export function createLevelProfile(level: number): LevelProfile {
-  const rng = createRng(hashInts(0x1ee7, level));
-
-  const family = rng.pick(PALETTE_FAMILIES);
-  const palette = rng.pick(family.palettes);
-
-  const derived: LevelProfile = {
-    level,
-    name: `The ${rng.pick(NAME_ADJECTIVES)} ${rng.pick(NAME_NOUNS)}`,
-    palette,
-    styleWeights: {
-      pillarField: rng.range(0, 4),
-      maze: rng.range(0, 4),
-      rooms: rng.range(0, 4),
-      halls: rng.range(0, 4),
-    },
-    wallDensity: clamp01(rng.range(0.15, 0.6)),
-    ceilingHeight: rng.range(2.5, 6.5),
-    fogDensity: rng.range(0.035, 0.12),
-    lightIntensity: clamp01(rng.range(0.15, 0.9)),
-    flickerAmount: clamp01(rng.range(0, 0.8)),
-    decay: clamp01(rng.range(0, 1)),
-    lightSpacing: rng.int(3, 7),
-    ambience: rng.pick<AmbienceId>(["fluorescentHum", "deepDrone", "windHollow", "nearSilence"]),
-    // Furniture rolls come last so adding them never reshuffled older traits.
-    furnitureDensity: rng.range(0.015, 0.08),
-    furnitureWeights: FAMILY_FURNITURE[family.name],
-    // Item/entity rolls come after furniture for the same reason.
-    itemSpawnDensity: rng.range(0.006, 0.02),
-    spawnTable: [
-      { id: "bandage", weight: rng.range(0.5, 2) },
-      { id: "adrenaline", weight: rng.range(0.5, 2) },
-      { id: "flashlight", weight: rng.range(0.1, 0.6) },
-      { id: "wanderer", weight: rng.range(0.2, 1.5) },
-    ],
-  };
-
-  const canonical = CANONICAL_LEVELS[level];
-  return canonical ? { ...derived, ...canonical, level } : derived;
+export function getLevelProfile(level: number): LevelProfile {
+  const profile = LEVELS_BY_NUMBER.get(level);
+  if (!profile) {
+    throw new Error(`getLevelProfile: ${level} is not one of the Main Nine`);
+  }
+  return profile;
 }

@@ -9,7 +9,7 @@ import {
   generateChunk,
   type ChunkData,
 } from "../generation/chunk";
-import { createLevelProfile } from "../generation/levelProfile";
+import { getLevelProfile } from "../generation/levelProfile";
 import { createRng } from "../generation/rng";
 import { furnitureRegistry } from "./catalog";
 import { placeFurniture, type FurniturePlacement } from "./placeFurniture";
@@ -98,19 +98,20 @@ const anchorsReachable = (chunk: ChunkData, anchors: [number, number][]): boolea
 const groundPieces = (chunk: ChunkData): FurniturePlacement[] =>
   chunk.furniture.filter((piece) => piece.y === 0);
 
-// Level 4 ("Abandoned Office") has the densest furniture table.
-const SAMPLED = [0, 1, 4, 5, 42, 137];
+// Level 4 ("Abandoned Office") has the densest furniture table. Sweep the
+// full Main Nine roster.
+const SAMPLED = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 describe("placeFurniture", () => {
   it("is deterministic: same seed and level produce identical furniture", () => {
-    const profile = createLevelProfile(4);
+    const profile = getLevelProfile(4);
     const a = generateChunk(99, 2, -3, profile);
     const b = generateChunk(99, 2, -3, profile);
     expect(a.furniture).toEqual(b.furniture);
   });
 
   it("produces furniture on furnished levels", () => {
-    const profile = createLevelProfile(4);
+    const profile = getLevelProfile(4);
     const total = [0, 1, 2, 3].reduce(
       (sum, cx) => sum + generateChunk(7, cx, 0, profile).furniture.length,
       0,
@@ -140,7 +141,7 @@ describe("placeFurniture", () => {
 
   it("every placement is valid across levels and chunks", () => {
     for (const level of SAMPLED) {
-      const profile = createLevelProfile(level);
+      const profile = getLevelProfile(level);
       for (const [cx, cz] of [
         [0, 0],
         [3, -2],
@@ -203,7 +204,7 @@ describe("placeFurniture", () => {
 
   it("preserves the connectivity guarantee between all border anchors", () => {
     for (const level of SAMPLED) {
-      const profile = createLevelProfile(level);
+      const profile = getLevelProfile(level);
       for (let cx = 0; cx < 3; cx++) {
         const chunk = generateChunk(555, cx, 1, profile);
         expect(anchorsReachable(chunk, anchorCells(555, cx, 1))).toBe(true);

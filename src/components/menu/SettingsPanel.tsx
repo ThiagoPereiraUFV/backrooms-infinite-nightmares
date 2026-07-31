@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { MAX_LEVEL } from "@/config/constants";
 import { DIFFICULTIES, type Difficulty } from "@/config/difficulty";
-import { createLevelProfile } from "@/engine/generation/levelProfile";
+import { getLevelProfile, LEVELS } from "@/engine/generation/levelProfile";
 import { useIsCoarsePointer } from "@/hooks/useIsCoarsePointer";
-import { clampLevel, useSettingsStore } from "@/state/settingsStore";
+import { useSettingsStore } from "@/state/settingsStore";
 import { Field } from "@/components/ui/Field";
 import { Slider } from "@/components/ui/Slider";
 import { Toggle } from "@/components/ui/Toggle";
@@ -18,7 +17,7 @@ export interface SettingsPanelProps {
 
 export function SettingsPanel({ compact = false }: SettingsPanelProps) {
   const settings = useSettingsStore();
-  const preview = useMemo(() => createLevelProfile(settings.level), [settings.level]);
+  const preview = useMemo(() => getLevelProfile(settings.level), [settings.level]);
   const isCoarsePointer = useIsCoarsePointer();
 
   return (
@@ -28,33 +27,18 @@ export function SettingsPanel({ compact = false }: SettingsPanelProps) {
       {!compact && (
         <>
           <Field label="Level">
-            <span className={styles.levelRow}>
-              <button
-                type="button"
-                className={styles.stepButton}
-                aria-label="Previous level"
-                onClick={() => settings.setLevel(settings.level - 1)}
-              >
-                −
-              </button>
-              <input
-                type="number"
-                className={styles.levelInput}
-                aria-label="Level number"
-                min={0}
-                max={MAX_LEVEL}
-                value={settings.level}
-                onChange={(event) => settings.setLevel(clampLevel(Number(event.target.value)))}
-              />
-              <button
-                type="button"
-                className={styles.stepButton}
-                aria-label="Next level"
-                onClick={() => settings.setLevel(settings.level + 1)}
-              >
-                +
-              </button>
-            </span>
+            <select
+              className={styles.select}
+              aria-label="Level"
+              value={settings.level}
+              onChange={(event) => settings.setLevel(Number(event.target.value))}
+            >
+              {LEVELS.map((profile) => (
+                <option key={profile.level} value={profile.level}>
+                  {profile.level} — {profile.name}
+                </option>
+              ))}
+            </select>
           </Field>
           <p className={styles.levelPreview}>
             <strong>{preview.name}</strong> —{" "}

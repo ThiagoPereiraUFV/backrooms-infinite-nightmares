@@ -68,22 +68,6 @@
   justify-content: flex-end;
 }
 
-.levelInput {
-  width: 5.5rem;
-  padding: 0.4rem;
-  background: var(--bg);
-  border: 1px solid var(--accent-dim);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 1rem;
-  text-align: center;
-}
-
-.levelInput:focus-visible {
-  border-color: var(--accent);
-  outline: none;
-}
-
 .levelPreview {
   color: var(--text-dim);
   font-size: 0.8rem;
@@ -95,28 +79,8 @@
   color: var(--text);
 }
 
-.stepButton {
-  padding: 0.35rem 0.7rem;
-  background: transparent;
-  border: 1px solid var(--accent-dim);
-  color: var(--text);
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.stepButton:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 /* Coarse pointers (touch) need >=44px targets; mouse keeps the compact size. */
 @media (pointer: coarse) {
-  .stepButton {
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0.5rem 0.9rem;
-  }
-
   .select {
     min-height: 44px;
   }

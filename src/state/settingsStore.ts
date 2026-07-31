@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { MAX_LEVEL } from "@/config/constants";
 import { DIFFICULTIES, type Difficulty } from "@/config/difficulty";
+import { LEVELS } from "@/engine/generation/levelProfile";
 
 export type GameMode = "single" | "multiplayer";
 
@@ -30,8 +30,10 @@ export interface SettingsState {
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
-export const clampLevel = (level: number): number =>
-  Number.isFinite(level) ? clamp(Math.round(level), 0, MAX_LEVEL) : 0;
+// The roster is the only valid set of levels — anything else (a stale
+// localStorage value, a fat-fingered call) falls back to the first level.
+const sanitizeLevel = (level: number): number =>
+  LEVELS.some((profile) => profile.level === level) ? level : LEVELS[0].level;
 
 const clampVolume = (volume: number): number => (Number.isFinite(volume) ? clamp(volume, 0, 1) : 1);
 
@@ -62,7 +64,7 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       ...DEFAULTS,
-      setLevel: (level) => set({ level: clampLevel(level) }),
+      setLevel: (level) => set({ level: sanitizeLevel(level) }),
       setDifficulty: (difficulty) =>
         set({ difficulty: DIFFICULTIES.includes(difficulty) ? difficulty : DEFAULTS.difficulty }),
       setMusicEnabled: (musicEnabled) => set({ musicEnabled }),
@@ -80,7 +82,7 @@ export const useSettingsStore = create<SettingsState>()(
         const raw = (persisted ?? {}) as Partial<SettingsState>;
         return {
           ...current,
-          level: clampLevel(raw.level ?? DEFAULTS.level),
+          level: sanitizeLevel(raw.level ?? DEFAULTS.level),
           difficulty: DIFFICULTIES.includes(raw.difficulty as Difficulty)
             ? (raw.difficulty as Difficulty)
             : DEFAULTS.difficulty,

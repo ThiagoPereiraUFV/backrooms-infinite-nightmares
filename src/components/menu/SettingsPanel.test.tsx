@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MAX_LEVEL } from "@/config/constants";
+import { LEVELS } from "@/engine/generation/levelProfile";
 import { mockMatchMedia } from "@/hooks/matchMediaTestUtils";
 import { useSettingsStore } from "@/state/settingsStore";
 import { SettingsPanel } from "./SettingsPanel";
@@ -21,23 +21,24 @@ describe("SettingsPanel", () => {
     });
   });
 
-  it("steps the level with the +/- buttons and clamps at the bottom", async () => {
-    const user = userEvent.setup();
+  it("renders exactly one option per roster level, labeled with number and name", () => {
     render(<SettingsPanel />);
-    await user.click(screen.getByRole("button", { name: "Next level" }));
-    expect(useSettingsStore.getState().level).toBe(1);
-    await user.click(screen.getByRole("button", { name: "Previous level" }));
-    await user.click(screen.getByRole("button", { name: "Previous level" }));
-    expect(useSettingsStore.getState().level).toBe(0);
+    const select = screen.getByRole("combobox", { name: "Level" });
+    const options = Array.from(select.querySelectorAll("option"));
+    expect(options).toHaveLength(LEVELS.length);
+    for (const profile of LEVELS) {
+      expect(
+        options.some((option) => option.textContent === `${profile.level} — ${profile.name}`),
+      ).toBe(true);
+    }
   });
 
-  it("clamps typed level numbers to 0..999", async () => {
+  it("choosing a level updates the store and the preview line", async () => {
     const user = userEvent.setup();
     render(<SettingsPanel />);
-    const input = screen.getByRole("spinbutton", { name: "Level number" });
-    await user.clear(input);
-    await user.type(input, "5000");
-    expect(useSettingsStore.getState().level).toBeLessThanOrEqual(MAX_LEVEL);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Level" }), "6");
+    expect(useSettingsStore.getState().level).toBe(6);
+    expect(screen.getByText("Lights Out")).toBeInTheDocument();
   });
 
   it("shows the level preview name", () => {
@@ -77,7 +78,7 @@ describe("SettingsPanel", () => {
 
   it("hides level and mode controls in compact mode (pause menu)", () => {
     render(<SettingsPanel compact />);
-    expect(screen.queryByRole("spinbutton", { name: "Level number" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Level" })).not.toBeInTheDocument();
     expect(screen.queryByText(/multiplayer soon/i)).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Difficulty" })).toBeInTheDocument();
   });

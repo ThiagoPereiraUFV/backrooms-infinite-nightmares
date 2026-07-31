@@ -1,7 +1,8 @@
 # Backrooms - Infinite Nightmares
 
-A 3D first-person Backrooms exploration game. You noclipped out of reality — now there are 1,000
-levels of infinite, procedurally generated liminal space between you and nothing at all.
+A 3D first-person Backrooms exploration game. You noclipped out of reality — now there is an
+infinite, procedurally generated liminal space between you and nothing at all, spread across nine
+hand-authored canonical levels.
 
 Built with Next.js 16, React 19, three.js (@react-three/fiber) and zustand. Fully static —
 deployed to GitHub Pages on every push to `main`.
@@ -11,12 +12,13 @@ deployed to GitHub Pages on every push to `main`.
 - **Infinite procedural world** — chunk-based generation with a deterministic border contract:
   neighboring chunks agree on their shared edges without ever seeing each other, so the world is
   seamless and truly endless. Same seed + level ⇒ identical world.
-- **1,000 selectable levels (0–999)** — canonical lore levels (The Lobby, Lights Out, …) are
-  hand-tuned; every other level derives its palette, geometry style, lighting, fog, decay and
-  ambience from its number.
+- **Nine hand-authored canonical levels ("The Main Nine", 0–8)** — The Lobby, Parking Zone, Pipe
+  Dreams, Electrical Station, Abandoned Office, The Terror Hotel, Lights Out, Thalassophobia and
+  Cave System, each with its own palette, geometry style, lighting, fog, decay and ambience.
 - **Backrooms aesthetics** — monotonous geometry, retro/dated procedural textures (wallpaper,
-  carpet, ceiling tile), buzzing/flickering fluorescents, fog, film grain and vignette, dreamcore
-  and brutalist palettes.
+  carpet, ceiling tile), buzzing/flickering fluorescents, fog, film grain and vignette, and a
+  hand-tuned palette per level — yellowed office, concrete brutalist, industrial dark (moss and
+  rust), bleached liminal, lights-out black, flooded depths, cave stone.
 - **First-person controls** — arrows/WASD to move, mouse to look (pointer lock), Shift to sprint,
   Esc to pause.
 - **Health and stamina** — sprinting drains stamina; exhaustion locks sprint until you recover.

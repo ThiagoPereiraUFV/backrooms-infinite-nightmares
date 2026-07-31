@@ -6,7 +6,7 @@ import type { PointerLockControls as PointerLockControlsImpl } from "three-stdli
 import { NullAudioEngine, type AudioEngine } from "@/engine/audio/AudioEngine";
 import { ProceduralAudioEngine } from "@/engine/audio/ProceduralAudioEngine";
 import { ChunkManager } from "@/engine/generation/chunkManager";
-import { createLevelProfile } from "@/engine/generation/levelProfile";
+import { getLevelProfile } from "@/engine/generation/levelProfile";
 import { useCollectedStore } from "@/state/collectedStore";
 import { useGameStore } from "@/state/gameStore";
 import { usePlayerStore } from "@/state/playerStore";
@@ -66,7 +66,7 @@ export default function GameRoot() {
   const worldSeed = useGameStore((state) => state.worldSeed);
   const level = useSettingsStore((state) => state.level);
 
-  const profile = useMemo(() => createLevelProfile(level), [level]);
+  const profile = useMemo(() => getLevelProfile(level), [level]);
   const manager = useMemo(() => new ChunkManager(worldSeed, profile), [worldSeed, profile]);
   const controlsRef = useRef<PointerLockControlsImpl | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);

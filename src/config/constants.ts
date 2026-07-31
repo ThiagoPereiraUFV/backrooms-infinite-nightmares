@@ -36,9 +36,6 @@ export const FIXED_TIMESTEP = 1 / 120;
 /** Clamp for frame deltas (tab switches, hitches). */
 export const MAX_FRAME_DELTA = 0.1;
 
-/** Highest selectable level. */
-export const MAX_LEVEL = 999;
-
 /** HUD store snapshot frequency (Hz) so DOM updates never track the render loop. */
 export const HUD_UPDATE_HZ = 10;
 

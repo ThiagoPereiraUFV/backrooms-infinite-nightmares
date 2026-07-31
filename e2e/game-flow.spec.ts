@@ -22,19 +22,21 @@ test("menu configures settings and persists them", async ({ page }) => {
   await expect(page.getByText(/single player/i)).toBeVisible();
   await expect(page.getByText(/multiplayer soon/i)).toBeVisible();
 
-  await page.getByRole("spinbutton", { name: "Level number" }).fill("6");
-  await expect(page.getByText("Lights Out")).toBeVisible();
+  await page.getByRole("combobox", { name: "Level" }).selectOption("6");
+  // Exact match: the select's own option text ("6 — Lights Out") also contains
+  // this substring, so a loose match would resolve to two elements.
+  await expect(page.getByText("Lights Out", { exact: true })).toBeVisible();
   await page.getByRole("combobox", { name: "Difficulty" }).selectOption("medium");
 
   await page.reload();
-  await expect(page.getByRole("spinbutton", { name: "Level number" })).toHaveValue("6");
+  await expect(page.getByRole("combobox", { name: "Level" })).toHaveValue("6");
   await expect(page.getByRole("combobox", { name: "Difficulty" })).toHaveValue("medium");
 });
 
 test("full flow: menu -> game boots 3D world -> quit back to menu", async ({ page }) => {
   const errors = collectPageErrors(page);
   await page.goto("menu/");
-  await page.getByRole("spinbutton", { name: "Level number" }).fill("0");
+  await page.getByRole("combobox", { name: "Level" }).selectOption("0");
   await page.getByTestId("start-game").click();
 
   await expect(page).toHaveURL(/\/play\/?$/);

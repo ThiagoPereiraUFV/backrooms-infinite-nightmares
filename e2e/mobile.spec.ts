@@ -4,7 +4,7 @@ test("starting the game in portrait on a touch device shows the rotate advisory,
   page,
 }) => {
   await page.goto("menu/");
-  await page.getByRole("spinbutton", { name: "Level number" }).fill("0");
+  await page.getByRole("combobox", { name: "Level" }).selectOption("0");
   await page.getByTestId("start-game").click();
 
   await expect(page.getByTestId("enter-overlay")).toBeVisible();
@@ -37,7 +37,7 @@ test("touch controls appear during play and the pause button opens the pause men
   // Landscape from the start — gameplay requires it, this test targets play itself.
   await page.setViewportSize({ width: 844, height: 390 });
   await page.goto("menu/");
-  await page.getByRole("spinbutton", { name: "Level number" }).fill("0");
+  await page.getByRole("combobox", { name: "Level" }).selectOption("0");
   await page.getByTestId("start-game").click();
   await page.getByTestId("enter-game").tap();
 

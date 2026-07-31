@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { CELL_SIZE, CHUNK_SIZE } from "@/config/constants";
 import { CELL_OPEN, cellIndex, edgeGateways, generateChunk, type ChunkData } from "./chunk";
-import { createLevelProfile } from "./levelProfile";
+import { getLevelProfile } from "./levelProfile";
 
 const WORLD_SEED = 0xdead;
-const profile = createLevelProfile(0);
+const profile = getLevelProfile(0);
 
 /** All open cells reachable from (startX, startZ) within one chunk. */
 const reachableFrom = (chunk: ChunkData, startX: number, startZ: number): Set<number> => {
@@ -85,9 +85,9 @@ describe("generateChunk", () => {
   it("keeps all gateways and the center mutually reachable", () => {
     const last = CHUNK_SIZE - 1;
     const center = CHUNK_SIZE >> 1;
-    // Test across many chunks and several level profiles.
-    for (const level of [0, 2, 6, 123, 777]) {
-      const levelProfile = createLevelProfile(level);
+    // Test across many chunks and every level profile in the roster.
+    for (const level of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+      const levelProfile = getLevelProfile(level);
       for (let cx = -3; cx <= 3; cx++) {
         for (let cz = -3; cz <= 3; cz++) {
           const chunk = generateChunk(WORLD_SEED, cx, cz, levelProfile);

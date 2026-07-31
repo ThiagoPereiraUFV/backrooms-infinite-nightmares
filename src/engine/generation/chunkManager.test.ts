@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { CELL_SIZE, CHUNK_SIZE, CHUNK_WORLD_SIZE, PILLAR_SCALE } from "@/config/constants";
 import { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex } from "./chunk";
 import { ChunkManager } from "./chunkManager";
-import { createLevelProfile } from "./levelProfile";
+import { getLevelProfile } from "./levelProfile";
 
-const profile = createLevelProfile(0);
+const profile = getLevelProfile(0);
 
 describe("ChunkManager", () => {
   it("returns the same data for repeated requests (cache hit)", () => {
@@ -52,8 +52,8 @@ describe("ChunkManager", () => {
   });
 
   it("finds an open spawn cell", () => {
-    for (const level of [0, 6, 42]) {
-      const manager = new ChunkManager(7, createLevelProfile(level));
+    for (const level of [0, 6, 8]) {
+      const manager = new ChunkManager(7, getLevelProfile(level));
       const spawn = manager.findSpawn();
       expect(manager.cellAtWorld(spawn.x, spawn.z)).toBe(CELL_OPEN);
     }
@@ -72,7 +72,7 @@ describe("ChunkManager", () => {
     };
 
     // Level 1 is pillar-field heavy, so chunk (0,0) reliably has both types.
-    const manager = new ChunkManager(1, createLevelProfile(1));
+    const manager = new ChunkManager(1, getLevelProfile(1));
 
     it("reports walls as full-cell AABBs", () => {
       const cell = findCell(manager, CELL_WALL);
@@ -127,7 +127,7 @@ describe("ChunkManager", () => {
 
     it("includes furniture colliders for ground pieces", () => {
       // Level 4 is the densest furniture level — find a chunk that has some.
-      const furnished = new ChunkManager(7, createLevelProfile(4));
+      const furnished = new ChunkManager(7, getLevelProfile(4));
       for (let cx = 0; cx < 8; cx++) {
         const chunk = furnished.getChunk(cx, 0);
         const piece = chunk.furniture.find((candidate) => candidate.y === 0);

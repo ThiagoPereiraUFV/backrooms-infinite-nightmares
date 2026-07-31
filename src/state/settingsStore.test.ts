@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { MAX_LEVEL } from "@/config/constants";
-import { clampLevel, useSettingsStore } from "./settingsStore";
+import { LEVELS } from "@/engine/generation/levelProfile";
+import { useSettingsStore } from "./settingsStore";
 
 describe("settingsStore", () => {
   beforeEach(() => {
@@ -18,16 +18,25 @@ describe("settingsStore", () => {
     });
   });
 
-  it("clamps level into 0..999", () => {
+  it("accepts every roster level", () => {
     const { setLevel } = useSettingsStore.getState();
+    for (const profile of LEVELS) {
+      setLevel(profile.level);
+      expect(useSettingsStore.getState().level).toBe(profile.level);
+    }
+  });
+
+  it("falls back to the first roster level for a non-roster, negative, fractional or NaN level", () => {
+    const { setLevel } = useSettingsStore.getState();
+    const firstLevel = LEVELS[0].level;
+    setLevel(137);
+    expect(useSettingsStore.getState().level).toBe(firstLevel);
     setLevel(-5);
-    expect(useSettingsStore.getState().level).toBe(0);
-    setLevel(500.7);
-    expect(useSettingsStore.getState().level).toBe(501);
-    setLevel(5000);
-    expect(useSettingsStore.getState().level).toBe(MAX_LEVEL);
+    expect(useSettingsStore.getState().level).toBe(firstLevel);
+    setLevel(4.5);
+    expect(useSettingsStore.getState().level).toBe(firstLevel);
     setLevel(Number.NaN);
-    expect(useSettingsStore.getState().level).toBe(0);
+    expect(useSettingsStore.getState().level).toBe(firstLevel);
   });
 
   it("clamps volumes into 0..1", () => {
@@ -52,11 +61,6 @@ describe("settingsStore", () => {
     expect(useSettingsStore.getState().sfxEnabled).toBe(false);
   });
 
-  it("exposes clampLevel for UI input parsing", () => {
-    expect(clampLevel(Number.POSITIVE_INFINITY)).toBe(0);
-    expect(clampLevel(42.4)).toBe(42);
-  });
-
   it("clamps touch look sensitivity into 0.3..3", () => {
     const { setTouchLookSensitivity } = useSettingsStore.getState();
     setTouchLookSensitivity(0.01);
@@ -79,5 +83,19 @@ describe("settingsStore", () => {
     expect(useSettingsStore.getState().fogIntensity).toBe(0.8);
     setFogIntensity(Number.NaN);
     expect(useSettingsStore.getState().fogIntensity).toBe(0);
+  });
+
+  it("rehydrates a persisted out-of-roster level to the first roster level, keeping other settings", async () => {
+    localStorage.setItem(
+      "bin-settings",
+      JSON.stringify({
+        state: { level: 137, difficulty: "hard", musicVolume: 0.4 },
+        version: 0,
+      }),
+    );
+    await useSettingsStore.persist.rehydrate();
+    expect(useSettingsStore.getState().level).toBe(LEVELS[0].level);
+    expect(useSettingsStore.getState().difficulty).toBe("hard");
+    expect(useSettingsStore.getState().musicVolume).toBe(0.4);
   });
 });

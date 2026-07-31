@@ -39,9 +39,10 @@ To verify the GitHub Pages variant exactly as CI does, set
   gateway openings are hashed from the shared edge's absolute coordinates so neighboring chunks
   agree without communicating ([chunk.ts](src/engine/generation/chunk.ts) `edgeGateways`). Tests
   in `chunk.test.ts` enforce adjacency agreement and connectivity — don't break them.
-- **Levels 0–999** come from `createLevelProfile(n)` ([levelProfile.ts](src/engine/generation/levelProfile.ts)):
-  canonical lore levels are a data table (`CANONICAL_LEVELS`), everything else is derived. New
-  level styles are data additions, not code edits.
+- **A fixed roster of nine canonical levels** ("The Main Nine", lore numbers 0–8) comes from
+  `getLevelProfile(n)` ([levelProfile.ts](src/engine/generation/levelProfile.ts)): every level is a
+  complete, hand-authored `LevelProfile` in the `LEVELS` array — there is no procedural derivation.
+  New level styles are data additions to `LEVELS`, not code edits.
 - **Rendering is a consumer of engine data.** One shared material set per level
   ([levelMaterials.ts](src/components/scene/levelMaterials.ts)), shared unit geometries, instanced
   meshes per chunk. Anything created must be disposed on unmount — the e2e suite has a

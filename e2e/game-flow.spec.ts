@@ -61,6 +61,9 @@ test("full flow: menu -> game boots 3D world -> quit back to menu", async ({ pag
 });
 
 test("play -> menu -> play again does not leak or crash (context reboot)", async ({ page }) => {
+  // Two full WebGL boot/teardown cycles in one test — slower CI runners can
+  // miss the default 30s budget even though nothing is actually stuck.
+  test.setTimeout(60_000);
   const errors = collectPageErrors(page);
   for (let run = 0; run < 2; run++) {
     await page.goto("menu/");
@@ -89,6 +92,9 @@ test("deep link / refresh on play lands on the enter overlay, not a frozen world
 
 test("pointer lock enters the game and Esc pauses it", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium", "pointer lock is only reliable in chromium headless");
+  // WebGL boot + pointer lock + pause round-trip can miss the default 30s
+  // budget on slower CI runners even though nothing is actually stuck.
+  test.setTimeout(45_000);
   await page.goto("menu/");
   await page.getByTestId("start-game").click();
   await expect(page.getByTestId("enter-game")).toBeVisible();

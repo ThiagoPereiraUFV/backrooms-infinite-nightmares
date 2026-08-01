@@ -18,9 +18,20 @@ test("starting the game in portrait on a touch device shows the rotate advisory,
   // Auto-fullscreen may have engaged; a real device doesn't need un-fullscreening
   // to rotate, but the emulated OS window does before it'll accept a resize.
   await page.evaluate(() => document.exitFullscreen?.().catch(() => {}));
+  // exitFullscreen() resolves before the browser finishes tearing down the
+  // fullscreen window state, so resizing immediately after can throw "restore
+  // to normal state first" — wait for the flag to actually clear, then retry
+  // the resize itself in case the race is still won by the browser.
+  await page
+    .waitForFunction(() => !document.fullscreenElement, null, { timeout: 5_000 })
+    .catch(() => {});
   // Rotate to landscape: the viewport itself flips, same as a real device.
   const size = page.viewportSize();
-  if (size) await page.setViewportSize({ width: size.height, height: size.width });
+  if (size) {
+    await expect(async () => {
+      await page.setViewportSize({ width: size.height, height: size.width });
+    }).toPass({ timeout: 10_000 });
+  }
   await expect(page.getByTestId("rotate-overlay")).not.toBeVisible({ timeout: 10_000 });
 });
 

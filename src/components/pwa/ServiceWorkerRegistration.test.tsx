@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { assetUrl } from "@/config/assets";
 import { ServiceWorkerRegistration } from "./ServiceWorkerRegistration";
 
 afterEach(() => {
@@ -25,7 +26,7 @@ describe("ServiceWorkerRegistration", () => {
 
     render(<ServiceWorkerRegistration />);
 
-    expect(register).toHaveBeenCalledWith("/sw.js");
+    expect(register).toHaveBeenCalledWith(assetUrl("/sw.js"));
   });
 
   it("does not throw when registration rejects", () => {

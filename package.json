@@ -39,7 +39,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
-    "jsdom": "^26",
+    "jsdom": "^30",
     "prettier": "^3.9.6",
     "typescript": "^6",
     "vitest": "^4.1.10"

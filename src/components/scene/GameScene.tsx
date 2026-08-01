@@ -111,11 +111,13 @@ function PlayerLamp({ profile }: { profile: LevelProfile }) {
 function FlashlightBeam() {
   const on = usePlayerStore((state) => state.flashlightOn);
   const lightRef = useRef<THREE.SpotLight>(null);
+  const spillRef = useRef<THREE.PointLight>(null);
   const target = useMemo(() => new THREE.Object3D(), []);
   const direction = useRef(new THREE.Vector3());
 
   useFrame(({ camera }) => {
     const light = lightRef.current;
+    spillRef.current?.position.copy(camera.position);
     if (!light) return;
     light.position.copy(camera.position);
     camera.getWorldDirection(direction.current);
@@ -127,15 +129,20 @@ function FlashlightBeam() {
     <>
       <primitive object={target} />
       {on && (
-        <spotLight
-          ref={lightRef}
-          intensity={8}
-          angle={0.34}
-          penumbra={0.45}
-          distance={20}
-          decay={1.6}
-          color="#fff6d8"
-        />
+        <>
+          <spotLight
+            ref={lightRef}
+            intensity={26}
+            angle={0.32}
+            penumbra={0.35}
+            distance={28}
+            decay={2}
+            color="#fff6d8"
+          />
+          {/* Near-field spill from the housing/reflector — a real flashlight lights up
+              what's right in front of it, not just the narrow beam target. */}
+          <pointLight ref={spillRef} intensity={3} distance={4} decay={2} color="#fff6d8" />
+        </>
       )}
     </>
   );

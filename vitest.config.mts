@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { coverageConfigDefaults, defineConfig } from "vitest/config";
 import path from "node:path";
 
 export default defineConfig({
@@ -14,6 +14,9 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/engine/**", "src/state/**", "src/config/**"],
+      // Test-only fakes, not engine logic — excluded so a helper's own
+      // (deliberately untested) branches don't distort the gate.
+      exclude: [...coverageConfigDefaults.exclude, "src/engine/audio/audioTestUtils.ts"],
       thresholds: {
         lines: 90,
         functions: 90,

@@ -1,108 +1,29 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { NullAudioEngine } from "./AudioEngine";
+import { createFakeAudioContext, type FakeNode } from "./audioTestUtils";
 import { ProceduralAudioEngine } from "./ProceduralAudioEngine";
 
-/**
- * Minimal Web Audio fake: enough surface for the engine's node graph. Every
- * created node is recorded so tests can assert lifecycle behavior.
- */
-interface FakeNode {
-  kind: string;
-  connected: unknown[];
-  disconnect: ReturnType<typeof vi.fn>;
-  connect(target: unknown): void;
-  started?: boolean;
-  stopped?: boolean;
-  onended?: (() => void) | null;
-}
-
-const createFakeContext = () => {
-  const nodes: FakeNode[] = [];
-
-  const param = (value = 0) => ({
-    value,
-    setValueAtTime: vi.fn(),
-    linearRampToValueAtTime: vi.fn(),
-    exponentialRampToValueAtTime: vi.fn(),
-  });
-
-  const baseNode = (kind: string): FakeNode => {
-    const node: FakeNode = {
-      kind,
-      connected: [],
-      disconnect: vi.fn(),
-      connect(target: unknown) {
-        node.connected.push(target);
-      },
-    };
-    nodes.push(node);
-    return node;
-  };
-
-  const sourceNode = (kind: string) => {
-    const node = baseNode(kind) as FakeNode & {
-      start: ReturnType<typeof vi.fn>;
-      stop: ReturnType<typeof vi.fn>;
-    };
-    node.started = false;
-    node.stopped = false;
-    node.onended = null;
-    node.start = vi.fn(() => {
-      node.started = true;
-    });
-    node.stop = vi.fn(() => {
-      node.stopped = true;
-      node.onended?.();
-    });
-    return node;
-  };
-
-  const context = {
-    nodes,
-    state: "running" as AudioContextState,
-    currentTime: 0,
-    sampleRate: 8000,
-    destination: baseNode("destination"),
-    createGain: () => Object.assign(baseNode("gain"), { gain: param(1) }),
-    createDelay: () => Object.assign(baseNode("delay"), { delayTime: param(0) }),
-    createBiquadFilter: () =>
-      Object.assign(baseNode("filter"), { type: "lowpass", frequency: param(0), Q: param(1) }),
-    createOscillator: () =>
-      Object.assign(sourceNode("oscillator"), { type: "sine", frequency: param(0) }),
-    createBufferSource: () =>
-      Object.assign(sourceNode("bufferSource"), {
-        buffer: null,
-        loop: false,
-        playbackRate: param(1),
-      }),
-    createBuffer: (_channels: number, length: number, sampleRate: number) => ({
-      length,
-      sampleRate,
-      getChannelData: () => new Float32Array(length),
-    }),
-    suspend: vi.fn(function (this: { state: AudioContextState }) {
-      context.state = "suspended";
-      return Promise.resolve();
-    }),
-    resume: vi.fn(() => {
-      context.state = "running";
-      return Promise.resolve();
-    }),
-    close: vi.fn(() => {
-      context.state = "closed";
-      return Promise.resolve();
-    }),
-  };
-  return context;
-};
-
 const createEngine = () => {
-  const context = createFakeContext();
+  const context = createFakeAudioContext();
   const engine = new ProceduralAudioEngine(context as unknown as AudioContext);
   return { context, engine };
 };
 
-const AMBIENCES = ["fluorescentHum", "deepDrone", "windHollow", "nearSilence"] as const;
+// Nine per-level ambience ids, all mapped onto the four synthesis recipes
+// (RECIPE_BY_AMBIENCE) — one representative id per recipe is enough to cover
+// the switch, and the full nine are swept separately below.
+const AMBIENCES = ["lobbyHum", "parkingDrone", "hotelWind", "officeSilence"] as const;
+const ALL_AMBIENCE_IDS = [
+  "lobbyHum",
+  "parkingDrone",
+  "pipeSteam",
+  "stationBuzz",
+  "officeSilence",
+  "hotelWind",
+  "blackSilence",
+  "floodedDeep",
+  "caveDrip",
+] as const;
 
 describe("ProceduralAudioEngine", () => {
   it("builds an ambience graph for every ambience id", () => {
@@ -116,21 +37,29 @@ describe("ProceduralAudioEngine", () => {
     }
   });
 
+  it("builds a graph for all nine ambience ids (RECIPE_BY_AMBIENCE covers every id)", () => {
+    for (const ambience of ALL_AMBIENCE_IDS) {
+      const { context, engine } = createEngine();
+      engine.startAmbience(ambience);
+      expect(context.nodes.some((node) => node.started)).toBe(true);
+    }
+  });
+
   it("is idempotent for the same ambience and swaps cleanly for a new one", () => {
     const { context, engine } = createEngine();
-    engine.startAmbience("deepDrone");
+    engine.startAmbience("parkingDrone");
     const afterFirst = context.nodes.length;
-    engine.startAmbience("deepDrone");
+    engine.startAmbience("parkingDrone");
     expect(context.nodes.length).toBe(afterFirst);
 
-    engine.startAmbience("windHollow");
+    engine.startAmbience("hotelWind");
     const droneSources = context.nodes.slice(0, afterFirst).filter((node) => node.started);
     expect(droneSources.every((node) => node.stopped)).toBe(true);
   });
 
   it("stops and disconnects everything on stopAmbience", () => {
     const { context, engine } = createEngine();
-    engine.startAmbience("fluorescentHum");
+    engine.startAmbience("lobbyHum");
     const ambientNodes = context.nodes.filter((node) => node.kind !== "destination");
     engine.stopAmbience();
     const stillRunning = ambientNodes.filter((node) => node.started && !node.stopped);
@@ -144,13 +73,30 @@ describe("ProceduralAudioEngine", () => {
     engine.playUiClick();
     engine.playBreath();
     engine.playPickup();
-    engine.playGrowl();
+    engine.playEntityCue("growl");
 
     const oneShots = context.nodes.filter((node) => node.started);
     expect(oneShots.length).toBe(6);
     for (const node of oneShots) {
       node.onended?.();
       expect(node.disconnect).toHaveBeenCalled();
+    }
+  });
+
+  it("plays footsteps for wet and gravel surfaces too", () => {
+    const { context, engine } = createEngine();
+    engine.playFootstep("wet", false);
+    engine.playFootstep("gravel", true);
+    expect(context.nodes.some((node) => node.started)).toBe(true);
+  });
+
+  it("plays every entity cue variant", () => {
+    for (const cue of ["growl", "shriek", "chitter", "laugh"] as const) {
+      const { context, engine } = createEngine();
+      const before = context.nodes.length;
+      engine.playEntityCue(cue);
+      expect(context.nodes.length).toBeGreaterThan(before);
+      expect(context.nodes.some((node) => node.started)).toBe(true);
     }
   });
 
@@ -181,12 +127,12 @@ describe("ProceduralAudioEngine", () => {
     const { context, engine } = createEngine();
     engine.dispose();
     const nodeCount = context.nodes.length;
-    engine.startAmbience("deepDrone");
+    engine.startAmbience("parkingDrone");
     engine.playFootstep("carpet", false);
     engine.playUiClick();
     engine.playBreath();
     engine.playPickup();
-    engine.playGrowl();
+    engine.playEntityCue("growl");
     engine.suspend();
     engine.resume();
     engine.dispose();
@@ -204,7 +150,7 @@ describe("NullAudioEngine", () => {
     engine.playUiClick();
     engine.playBreath();
     engine.playPickup();
-    engine.playGrowl();
+    engine.playEntityCue();
     engine.setMusicVolume();
     engine.setSfxVolume();
     engine.suspend();

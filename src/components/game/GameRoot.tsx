@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PointerLockControls as PointerLockControlsImpl } from "three-stdlib";
 import { NullAudioEngine, type AudioEngine } from "@/engine/audio/AudioEngine";
+import { MANIFEST } from "@/engine/audio/manifest";
 import { ProceduralAudioEngine } from "@/engine/audio/ProceduralAudioEngine";
+import { SampledAudioEngine } from "@/engine/audio/SampledAudioEngine";
 import { ChunkManager } from "@/engine/generation/chunkManager";
 import { getLevelProfile } from "@/engine/generation/levelProfile";
 import { useCollectedStore } from "@/state/collectedStore";
@@ -124,10 +126,12 @@ export default function GameRoot() {
   const onLock = startPlaying;
 
   const enter = () => {
-    // First entry is a user gesture: safe to create the AudioContext.
+    // First entry is a user gesture: safe to create the AudioContext. Both
+    // engines share it; only the procedural one's dispose() actually closes it.
     if (audioRef.current instanceof NullAudioEngine) {
       try {
-        const engine = new ProceduralAudioEngine();
+        const procedural = new ProceduralAudioEngine();
+        const engine = new SampledAudioEngine(procedural.context, MANIFEST, procedural);
         audioRef.current = engine;
         const settings = useSettingsStore.getState();
         engine.setMusicVolume(settings.musicEnabled ? settings.musicVolume : 0);
@@ -190,6 +194,7 @@ export default function GameRoot() {
       <GameScene
         manager={manager}
         profile={profile}
+        worldSeed={worldSeed}
         audio={getAudio}
         onLock={onLock}
         onUnlock={onUnlock}

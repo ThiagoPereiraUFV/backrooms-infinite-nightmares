@@ -42,25 +42,44 @@ To verify the GitHub Pages variant exactly as CI does, set
 - **A fixed roster of nine canonical levels** ("The Main Nine", lore numbers 0–8) comes from
   `getLevelProfile(n)` ([levelProfile.ts](src/engine/generation/levelProfile.ts)): every level is a
   complete, hand-authored `LevelProfile` in the `LEVELS` array — there is no procedural derivation.
-  New level styles are data additions to `LEVELS`, not code edits.
+  New level styles are data additions to `LEVELS`, not code edits. The doc comment at the top of
+  that file is the source-of-truth audit trail: which wiki (`backrooms.fandom.com`), which page per
+  level, and the retrieval date — update it if you re-verify a level's lore detail.
+- **Structural features (door frames, wall breaches, ceiling openings, pipe runs) are read-only and
+  non-colliding**, by design ([placeFeatures.ts](src/engine/generation/placeFeatures.ts)). They run
+  after `ensureConnectivity`, over the finished grid, and contribute nothing to
+  `ChunkManager.obstaclesIn` — a collider on an open cell would silently break the connectivity
+  guarantee, which is exactly the bug class PLAN-2 M8 exists to prevent. If a level ever needs a
+  genuinely closed passage, that is a `CELL_WALL`, not a feature with a collider.
 - **Rendering is a consumer of engine data.** One shared material set per level
   ([levelMaterials.ts](src/components/scene/levelMaterials.ts)), shared unit geometries, instanced
   meshes per chunk. Anything created must be disposed on unmount — the e2e suite has a
-  play→menu→play leak test.
+  play→menu→play leak test. New materials belong only in `useLevelMaterials`; new geometries are
+  module-level caches, never disposed.
 - **Simulation is fixed-timestep (120 Hz)** inside `useFrame` in
   [PlayerRig.tsx](src/components/scene/PlayerRig.tsx); mutable sim state lives in a ref, never in
   React state. The DOM HUD reads ~10 Hz snapshots from `playerStore` — never publish to stores per
-  frame.
+  frame. Entity _rendering_ lives separately in
+  [EntitiesField.tsx](src/components/scene/EntitiesField.tsx), which shares the `EntitySystem`
+  instance PlayerRig simulates.
 - **Game flow is a guarded state machine** (`splash → menu → loading → playing ⇄ paused`,
   [gamePhase.ts](src/engine/gamePhase.ts)). Illegal transitions return false; don't bypass
   `transition()` by calling `setState` directly.
 - **Audio goes through the `AudioEngine` interface** ([AudioEngine.ts](src/engine/audio/AudioEngine.ts)).
   Gameplay code never touches Web Audio directly; the AudioContext may only be created after a
-  user gesture.
-- **Phase 2 (enemies/items) plugs into existing seams**: `itemRegistry`/`entityRegistry`,
+  user gesture. `SampledAudioEngine` plays downloaded CC0 assets (manifest-mapped) and delegates any
+  unmapped cue to `ProceduralAudioEngine` — the game always has a full soundscape even where an
+  asset hasn't landed. **Audio assets are CC0/public-domain only** (there is no credits screen, so
+  attribution-required licenses would be a silent violation); every committed file is logged in
+  [`public/audio/CREDITS.md`](public/audio/CREDITS.md). Every asset URL must go through
+  `assetUrl()` ([assets.ts](src/config/assets.ts)) — a literal `"/audio/..."` path 404s under the
+  GitHub Pages base path.
+- **Entities/items plug into existing seams**: `itemRegistry`/`entityRegistry`,
   `LevelProfile.spawnTable`, `ChunkData.spawns`, `EntitySystem.update` (already ticking),
-  `playerStore.inventory`, and the difficulty-scaled damage pipeline in `stats.ts`. Extend via
-  registry entries, not core rewrites.
+  `playerStore.inventory`, and the difficulty-scaled damage pipeline in `stats.ts`. A new entity is
+  a data entry in [entities/catalog.ts](src/engine/entities/catalog.ts) — id, behavior (one of the
+  three shared strategies in `behaviors.ts`: chaser, stalker, drifter), appearance id, audio cue —
+  not a refactor.
 
 ## Gotchas
 

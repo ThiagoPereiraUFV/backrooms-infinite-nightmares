@@ -24,6 +24,7 @@ describe("Registry", () => {
 describe("EntitySystem", () => {
   const context: EntityContext = {
     playerPosition: { x: 0, z: 0 },
+    playerForward: { x: 0, z: -1 },
     damagePlayer: () => {},
     deltaSeconds: 1 / 120,
     world: { obstaclesIn: () => [] },

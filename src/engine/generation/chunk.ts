@@ -2,22 +2,26 @@ import { CHUNK_SIZE, CHUNK_WORLD_SIZE } from "@/config/constants";
 import { placeFurniture, type FurniturePlacement } from "../furniture/placeFurniture";
 import { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex, type ChunkSpawn } from "./cells";
 import type { LevelProfile, GeometryStyle } from "./levelProfile";
+import { placeFeatures, type ChunkFeature } from "./placeFeatures";
 import { placeSpawns } from "./placeSpawns";
 import { createRng, hashInts, pickWeighted, type Rng } from "./rng";
 
 export { CELL_OPEN, CELL_PILLAR, CELL_WALL, cellIndex, type Cell, type ChunkSpawn } from "./cells";
+export type { ChunkFeature, FeatureKind } from "./placeFeatures";
 
 export interface ChunkData {
   cx: number;
   cz: number;
   /** CHUNK_SIZE * CHUNK_SIZE cells, row-major (index = z * CHUNK_SIZE + x). */
   cells: Uint8Array;
-  /** Cell indices that carry a ceiling light fixture. */
+  /** Cell indices that carry a ceiling light fixture. Empty when `lighting: "none"`. */
   lights: number[];
   /** Static furniture placed in this chunk (world-space, deterministic). */
   furniture: FurniturePlacement[];
   /** Item/entity spawn points placed in this chunk (deterministic per seed+level). */
   spawns: ChunkSpawn[];
+  /** Cosmetic structural features (doorways, breaches, ceiling detail) — read-only, non-colliding. */
+  features: ChunkFeature[];
 }
 
 const isSolid = (cells: Uint8Array, x: number, z: number): boolean =>
@@ -229,12 +233,17 @@ export function generateChunk(
   anchors.push([center, center]);
   ensureConnectivity(cells, anchors);
 
-  // Ceiling lights on a spacing grid over open cells.
+  // Ceiling lights on a spacing grid over open cells. `lighting: "none"`
+  // means no fixtures are generated at all — this is what actually makes a
+  // level like Level 6 dark, rather than glowing MeshBasicMaterial panels at
+  // full brightness regardless of scene light.
   const lights: number[] = [];
-  const spacing = profile.lightSpacing;
-  for (let z = 1; z < CHUNK_SIZE; z += spacing) {
-    for (let x = 1; x < CHUNK_SIZE; x += spacing) {
-      if (!isSolid(cells, x, z)) lights.push(cellIndex(x, z));
+  if (profile.lighting !== "none") {
+    const spacing = profile.lightSpacing;
+    for (let z = 1; z < CHUNK_SIZE; z += spacing) {
+      for (let x = 1; x < CHUNK_SIZE; x += spacing) {
+        if (!isSolid(cells, x, z)) lights.push(cellIndex(x, z));
+      }
     }
   }
 
@@ -263,5 +272,15 @@ export function generateChunk(
     originZ,
   });
 
-  return { cx, cz, cells, lights, furniture, spawns };
+  // Feature pass: read-only, runs last (nothing it observes can be
+  // invalidated later), emits no colliders, skips anchors — see PLAN-4 §6.1.
+  const features = placeFeatures({
+    cells,
+    anchors,
+    rng: createRng(hashInts(worldSeed, cx, cz, 0xd006)),
+    rates: profile.featureRates,
+    lights,
+  });
+
+  return { cx, cz, cells, lights, furniture, spawns, features };
 }

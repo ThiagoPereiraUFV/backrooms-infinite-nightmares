@@ -19,9 +19,11 @@ import {
 } from "@/config/constants";
 import { DIFFICULTY_CONFIGS } from "@/config/difficulty";
 import type { AudioEngine } from "@/engine/audio/AudioEngine";
-import { activeEntitySpawns, entityRegistry, EntitySystem } from "@/engine/entities";
+import { activeEntitySpawns, entityRegistry, type EntitySystem } from "@/engine/entities";
+import { getEntityAppearance } from "@/engine/entities/catalog";
 import type { ChunkData } from "@/engine/generation/chunk";
 import type { ChunkManager } from "@/engine/generation/chunkManager";
+import { createRng, hashString } from "@/engine/generation/rng";
 import { spawnKey, spawnWorldPosition } from "@/engine/generation/spawnFilter";
 import type { LevelProfile } from "@/engine/generation/levelProfile";
 import { activeItemSpawns, itemRegistry } from "@/engine/items";
@@ -48,30 +50,19 @@ export interface PlayerRigProps {
   manager: ChunkManager;
   profile: LevelProfile;
   audio: () => AudioEngine;
+  /** Owned by GameScene, shared with EntitiesField — rendering enemies is not this component's job. */
+  entities: EntitySystem;
   onLock(): void;
   onUnlock(): void;
   controlsRef: React.RefObject<PointerLockControlsImpl | null>;
 }
 
-// Enemy silhouette: one shared geometry/material for the whole game (never
-// disposed, matches the flyweight pattern used for walls/pillars/furniture).
-const ENEMY_HEIGHT = 1.8;
-const ENEMY_GEOMETRY = new THREE.BoxGeometry(0.5, ENEMY_HEIGHT, 0.3);
-const ENEMY_MATERIAL = new THREE.MeshStandardMaterial({
-  color: "#150606",
-  emissive: "#8a1414",
-  emissiveIntensity: 0.8,
-  roughness: 1,
-});
-const scratchPosition = new THREE.Vector3();
-const scratchQuaternion = new THREE.Quaternion();
-const scratchScale = new THREE.Vector3(1, 1, 1);
-const scratchMatrix = new THREE.Matrix4();
-
 // Touch drag-look: px-to-radians base rate (further scaled by the user's
 // touchLookSensitivity setting, already folded into touchInputBus deltas).
 const TOUCH_LOOK_RATE = 0.0028;
 const MAX_PITCH = Math.PI / 2 - 0.05;
+
+const scratchForward = new THREE.Vector3();
 
 /**
  * First-person rig: pointer-lock mouse look plus a fixed-timestep simulation
@@ -82,6 +73,7 @@ export function PlayerRig({
   manager,
   profile,
   audio,
+  entities,
   onLock,
   onUnlock,
   controlsRef,
@@ -90,14 +82,13 @@ export function PlayerRig({
   const inputRef = useKeyboardInput();
   const hotbarRef = useHotbarInput();
   const isCoarsePointer = useIsCoarsePointer();
-  const enemyMeshRef = useRef<THREE.InstancedMesh>(null);
 
   // Mutable simulation state, deliberately outside React: the fixed-timestep
   // loop reads/writes it every tick without triggering renders.
   const simRef = useRef({
     move: createMoveState(),
     stats: createStats(),
-    entities: new EntitySystem(),
+    entities,
     growledKeys: new Set<string>(),
     accumulator: 0,
     publishTimer: 0,
@@ -106,7 +97,14 @@ export function PlayerRig({
     position: new THREE.Vector3(),
     euler: new THREE.Euler(0, 0, 0, "YXZ"),
     spawnPoint: { x: 0, z: 0 },
+    playerForward: { x: 0, z: -1 },
   });
+  // Kept in sync in case the caller ever swaps the EntitySystem instance.
+  // Refs must not be written during render, so this is an effect, not a
+  // plain assignment in the component body.
+  useEffect(() => {
+    simRef.current.entities = entities;
+  }, [entities]);
 
   // Spawn once per level/session at a guaranteed-open cell.
   useEffect(() => {
@@ -124,7 +122,7 @@ export function PlayerRig({
 
     const sim = simRef.current;
     const difficulty = DIFFICULTY_CONFIGS[useSettingsStore.getState().difficulty];
-    const surface = profile.ambience === "fluorescentHum" ? "carpet" : "hard";
+    const surface = profile.footstepSurface;
     sim.accumulator += Math.min(rawDelta, MAX_FRAME_DELTA);
 
     // Desktop: PointerLockControls already wrote the camera's rotation from
@@ -144,6 +142,12 @@ export function PlayerRig({
     }
     const yaw = sim.euler.y;
     const moveInput = isCoarsePointer ? touchInputBus.move : inputRef.current;
+
+    // Flat (XZ) facing direction, for createStalker's "freezes when observed" check.
+    camera.getWorldDirection(scratchForward);
+    const forwardLen = Math.hypot(scratchForward.x, scratchForward.z) || 1;
+    sim.playerForward.x = scratchForward.x / forwardLen;
+    sim.playerForward.z = scratchForward.z / forwardLen;
 
     // Hotbar presses are discrete UI events: drained once per rendered
     // frame, not per fixed substep.
@@ -183,6 +187,7 @@ export function PlayerRig({
 
       sim.entities.update({
         playerPosition: { x: resolved.x, z: resolved.z },
+        playerForward: sim.playerForward,
         damagePlayer: (amount) => applyDamage(sim.stats, amount, difficulty),
         deltaSeconds: FIXED_TIMESTEP,
         world: manager,
@@ -268,8 +273,12 @@ export function PlayerRig({
           wantedKeys.add(candidate.key);
           if (!sim.entities.has(candidate.key)) {
             const definition = entityRegistry.get(candidate.id);
-            if (definition)
-              sim.entities.add(definition.spawn(candidate.x, candidate.z), candidate.key);
+            if (definition) {
+              // Seeded from the spawn key: same key always yields the same
+              // entity motion, with no `Math.random` mocking needed anywhere.
+              const rng = createRng(hashString(candidate.key));
+              sim.entities.add(definition.spawn(candidate.x, candidate.z, rng), candidate.key);
+            }
           }
         }
         for (const key of [...sim.entities.keys()]) {
@@ -279,13 +288,13 @@ export function PlayerRig({
           }
         }
 
-        // --- Growl cue: one-shot per approach, re-arms once the entity leaves range. ---
+        // --- Entity audio cue: one-shot per approach, re-arms once the entity leaves range. ---
         for (const [key, entity] of sim.entities.entries()) {
           const dist = Math.hypot(entity.x - sim.position.x, entity.z - sim.position.z);
           const near = dist <= ENEMY_GROWL_RADIUS;
           if (near && !sim.growledKeys.has(key)) {
             sim.growledKeys.add(key);
-            audio().playGrowl();
+            audio().playEntityCue(getEntityAppearance(entity.definitionId)?.cue ?? "growl");
           } else if (!near && sim.growledKeys.has(key)) {
             sim.growledKeys.delete(key);
           }
@@ -303,20 +312,6 @@ export function PlayerRig({
     }
 
     camera.position.set(sim.position.x, PLAYER_EYE_HEIGHT, sim.position.z);
-
-    const enemyMesh = enemyMeshRef.current;
-    if (enemyMesh) {
-      let i = 0;
-      for (const [, entity] of sim.entities.entries()) {
-        if (i >= MAX_ACTIVE_ENTITIES) break;
-        scratchPosition.set(entity.x, ENEMY_HEIGHT / 2, entity.z);
-        scratchMatrix.compose(scratchPosition, scratchQuaternion, scratchScale);
-        enemyMesh.setMatrixAt(i, scratchMatrix);
-        i++;
-      }
-      enemyMesh.count = i;
-      if (i > 0) enemyMesh.instanceMatrix.needsUpdate = true;
-    }
   });
 
   return (
@@ -335,16 +330,6 @@ export function PlayerRig({
           minPolarAngle={0.05}
         />
       )}
-      <instancedMesh
-        ref={enemyMeshRef}
-        args={[ENEMY_GEOMETRY, ENEMY_MATERIAL, MAX_ACTIVE_ENTITIES]}
-        // Instances follow the player far from the origin, but three caches the
-        // InstancedMesh bounding sphere from the first render (count 0 → empty
-        // sphere), which culls the mesh forever. Only MAX_ACTIVE_ENTITIES boxes,
-        // so skipping culling is free.
-        frustumCulled={false}
-        dispose={null}
-      />
     </>
   );
 }

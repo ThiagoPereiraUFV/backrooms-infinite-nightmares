@@ -82,6 +82,9 @@ describe("generateChunk", () => {
     }
   });
 
+  // 9 levels x 7x7 chunks x (furniture + feature) passes is a heavy sweep;
+  // v8 coverage instrumentation alone can push it past the default 5s
+  // timeout, so it gets an explicit budget rather than a flaky one.
   it("keeps all gateways and the center mutually reachable", () => {
     const last = CHUNK_SIZE - 1;
     const center = CHUNK_SIZE >> 1;
@@ -109,7 +112,7 @@ describe("generateChunk", () => {
         }
       }
     }
-  });
+  }, 15_000);
 
   it("places ceiling lights only on open cells", () => {
     const chunk = generateChunk(WORLD_SEED, 4, 4, profile);
@@ -175,5 +178,68 @@ describe("generateChunk", () => {
       0,
     );
     expect(total).toBeGreaterThan(0);
+  });
+
+  it("generates byte-identical cells and features end-to-end for the same seed", () => {
+    // This is a determinism check on the whole generateChunk pipeline
+    // (including the feature pass), not a mutation proof: two independent
+    // calls happening to match doesn't rule out a deterministic in-place
+    // write inside placeFeatures. The actual "placeFeatures never writes
+    // `cells`" guarantee is a direct before/after diff on one call, in
+    // placeFeatures.test.ts ("does not mutate the input grid").
+    const a = generateChunk(WORLD_SEED, 2, 2, profile);
+    const b = generateChunk(WORLD_SEED, 2, 2, profile);
+    expect(a.cells).toEqual(b.cells);
+    expect(a.features).toEqual(b.features);
+  });
+
+  it("produces features that differ across seeds", () => {
+    const hotel = getLevelProfile(5); // high doorway rate, features are plentiful
+    const a = generateChunk(WORLD_SEED, 3, 3, hotel);
+    const b = generateChunk(WORLD_SEED + 1, 3, 3, hotel);
+    expect(a.features).not.toEqual(b.features);
+  });
+
+  it("never places a feature on a border-contract anchor cell", () => {
+    const hotel = getLevelProfile(5);
+    const last = CHUNK_SIZE - 1;
+    const center = CHUNK_SIZE >> 1;
+    const chunk = generateChunk(WORLD_SEED, 6, -6, hotel);
+    const anchors = new Set<number>();
+    anchors.add(cellIndex(center, center));
+    for (const row of edgeGateways(WORLD_SEED, 0, 6, -6)) {
+      anchors.add(cellIndex(0, row));
+      anchors.add(cellIndex(1, row));
+    }
+    for (const row of edgeGateways(WORLD_SEED, 0, 7, -6)) {
+      anchors.add(cellIndex(last, row));
+      anchors.add(cellIndex(last - 1, row));
+    }
+    for (const col of edgeGateways(WORLD_SEED, 1, 6, -6)) {
+      anchors.add(cellIndex(col, 0));
+      anchors.add(cellIndex(col, 1));
+    }
+    for (const col of edgeGateways(WORLD_SEED, 1, 6, -5)) {
+      anchors.add(cellIndex(col, last));
+      anchors.add(cellIndex(col, last - 1));
+    }
+    for (const feature of chunk.features) {
+      expect(anchors.has(cellIndex(feature.cellX, feature.cellZ))).toBe(false);
+    }
+  });
+
+  it("produces no light fixtures at all for a lighting: 'none' level", () => {
+    const darkLevel = getLevelProfile(6); // Lights Out — lighting: "none"
+    const chunk = generateChunk(WORLD_SEED, -2, 5, darkLevel);
+    expect(chunk.lights.length).toBe(0);
+  });
+
+  it("still produces fixtures only on open cells for a fluorescentPanels level", () => {
+    const officeLevel = getLevelProfile(4); // Abandoned Office — lighting: "fluorescentPanels"
+    const chunk = generateChunk(WORLD_SEED, 4, 4, officeLevel);
+    expect(chunk.lights.length).toBeGreaterThan(0);
+    for (const idx of chunk.lights) {
+      expect(chunk.cells[idx]).toBe(CELL_OPEN);
+    }
   });
 });

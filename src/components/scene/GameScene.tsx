@@ -7,12 +7,15 @@ import type { PointerLockControls as PointerLockControlsImpl } from "three-stdli
 import { CHUNK_WORLD_SIZE, PLAYER_EYE_HEIGHT, VIEW_DISTANCE_CHUNKS } from "@/config/constants";
 import { DIFFICULTY_CONFIGS } from "@/config/difficulty";
 import type { AudioEngine } from "@/engine/audio/AudioEngine";
+import { EntitySystem } from "@/engine/entities";
 import type { ChunkData } from "@/engine/generation/chunk";
 import type { ChunkManager } from "@/engine/generation/chunkManager";
 import type { LevelProfile } from "@/engine/generation/levelProfile";
+import { flickerFactor } from "@/engine/lighting/flicker";
 import { usePlayerStore } from "@/state/playerStore";
 import { useSettingsStore } from "@/state/settingsStore";
 import { ChunkMesh } from "./ChunkMesh";
+import { EntitiesField } from "./EntitiesField";
 import { ItemsField } from "./ItemsField";
 import { useLevelMaterials } from "./levelMaterials";
 import { PlayerRig } from "./PlayerRig";
@@ -60,25 +63,26 @@ function ChunkField({ chunks, profile }: { chunks: ChunkData[]; profile: LevelPr
   );
 }
 
-/** Ambient + hemisphere light with fluorescent flicker driven by the profile. */
-function LevelLighting({ profile }: { profile: LevelProfile }) {
+/**
+ * Ambient + hemisphere light, dimmed by the pure, seeded `flickerFactor`
+ * (engine/lighting/flicker.ts) instead of a per-frame `Math.random` — the
+ * whole level no longer blinks in lockstep once per-fixture flicker (M20 in
+ * ChunkMesh) is layered on top of this.
+ */
+function LevelLighting({ profile, worldSeed }: { profile: LevelProfile; worldSeed: number }) {
   const ambientRef = useRef<THREE.AmbientLight>(null);
   const baseIntensity = 0.25 + profile.lightIntensity * 1.15;
-  const flickerState = useRef({ dimFrames: 0 });
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     const ambient = ambientRef.current;
     if (!ambient) return;
-    const flicker = flickerState.current;
-    if (flicker.dimFrames > 0) {
-      flicker.dimFrames--;
-      ambient.intensity = baseIntensity * (0.55 + Math.random() * 0.2);
-    } else {
-      ambient.intensity = baseIntensity;
-      if (Math.random() < profile.flickerAmount * 0.015) {
-        flicker.dimFrames = 2 + Math.floor(Math.random() * 5);
-      }
-    }
+    const factor = flickerFactor(
+      profile.lighting,
+      profile.flickerAmount,
+      clock.elapsedTime,
+      worldSeed,
+    );
+    ambient.intensity = baseIntensity * factor;
   });
 
   return (
@@ -140,6 +144,7 @@ function FlashlightBeam() {
 export interface GameSceneProps {
   manager: ChunkManager;
   profile: LevelProfile;
+  worldSeed: number;
   audio: () => AudioEngine;
   onLock(): void;
   onUnlock(): void;
@@ -149,6 +154,7 @@ export interface GameSceneProps {
 export function GameScene({
   manager,
   profile,
+  worldSeed,
   audio,
   onLock,
   onUnlock,
@@ -160,6 +166,12 @@ export function GameScene({
   // User fog setting: 0 → no fog, 0.5 → the level's designed density, 1 → double.
   const fogIntensity = useSettingsStore((state) => state.fogIntensity);
   const fogDensity = profile.fogDensity * fogIntensity * 2;
+  // One EntitySystem for the session, shared by the simulation (PlayerRig)
+  // and the renderer (EntitiesField) — rendering is not the simulation's job.
+  // `manager` is the intentional cache key (a new ChunkManager means a new
+  // level/session), even though the factory itself doesn't read it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const entities = useMemo(() => new EntitySystem(), [manager]);
 
   return (
     <Canvas
@@ -170,15 +182,17 @@ export function GameScene({
     >
       <color attach="background" args={[profile.palette.fog]} />
       <fogExp2 attach="fog" args={[profile.palette.fog, fogDensity]} />
-      <LevelLighting profile={profile} />
+      <LevelLighting profile={profile} worldSeed={worldSeed} />
       <PlayerLamp profile={profile} />
       <FlashlightBeam />
       <ChunkField chunks={chunks} profile={profile} />
       <ItemsField chunks={chunks} itemScarcity={itemScarcity} />
+      <EntitiesField entities={entities} />
       <PlayerRig
         manager={manager}
         profile={profile}
         audio={audio}
+        entities={entities}
         onLock={onLock}
         onUnlock={onUnlock}
         controlsRef={controlsRef}

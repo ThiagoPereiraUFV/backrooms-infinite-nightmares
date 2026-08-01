@@ -1,7 +1,7 @@
 import { Registry } from "../registry";
 
 /** Which shared per-level material a piece is rendered with. */
-export type FurnitureMaterialRole = "wood" | "fabric";
+export type FurnitureMaterialRole = "wood" | "fabric" | "metal" | "stone";
 
 /**
  * One furniture kind, described as pure data. Adding a new piece is a catalog
@@ -93,6 +93,99 @@ export const FURNITURE_CATALOG: readonly FurnitureDef[] = [
     stackable: true,
     clusterAffinity: 3,
     materialRole: "wood",
+  },
+  // Level-flavor props (PLAN-4 M21) — same catalog, same placement/collision
+  // machinery as the original eight; only the geometry builder and material
+  // role differ.
+  {
+    id: "barrel",
+    halfX: 0.3,
+    halfZ: 0.3,
+    height: 0.9,
+    stackable: true,
+    clusterAffinity: 2,
+    materialRole: "metal",
+  },
+  {
+    id: "pipeStack",
+    halfX: 0.35,
+    halfZ: 0.35,
+    height: 1.0,
+    stackable: false,
+    clusterAffinity: 2,
+    materialRole: "metal",
+  },
+  {
+    id: "valveWheel",
+    halfX: 0.15,
+    halfZ: 0.15,
+    height: 1.1,
+    stackable: false,
+    clusterAffinity: 1,
+    materialRole: "metal",
+  },
+  {
+    id: "transformer",
+    halfX: 0.6,
+    halfZ: 0.6,
+    height: 1.5,
+    stackable: false,
+    clusterAffinity: 1,
+    materialRole: "metal",
+  },
+  {
+    id: "electricalPanel",
+    halfX: 0.35,
+    halfZ: 0.15,
+    height: 1.8,
+    stackable: false,
+    clusterAffinity: 1,
+    materialRole: "metal",
+  },
+  {
+    id: "vendingMachine",
+    halfX: 0.4,
+    halfZ: 0.35,
+    height: 1.9,
+    stackable: false,
+    clusterAffinity: 1,
+    materialRole: "metal",
+  },
+  {
+    id: "waterCooler",
+    halfX: 0.2,
+    halfZ: 0.2,
+    height: 1.1,
+    stackable: false,
+    clusterAffinity: 1,
+    materialRole: "metal",
+  },
+  {
+    id: "luggageCart",
+    halfX: 0.5,
+    halfZ: 0.35,
+    height: 0.9,
+    stackable: true,
+    clusterAffinity: 1,
+    materialRole: "metal",
+  },
+  {
+    id: "rubblePile",
+    halfX: 0.5,
+    halfZ: 0.5,
+    height: 0.4,
+    stackable: false,
+    clusterAffinity: 2,
+    materialRole: "stone",
+  },
+  {
+    id: "stalagmite",
+    halfX: 0.3,
+    halfZ: 0.3,
+    height: 1.6,
+    stackable: false,
+    clusterAffinity: 1,
+    materialRole: "stone",
   },
 ];
 

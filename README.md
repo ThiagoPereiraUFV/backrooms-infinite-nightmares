@@ -7,38 +7,48 @@ hand-authored canonical levels.
 Built with Next.js 16, React 19, three.js (@react-three/fiber) and zustand. Fully static —
 deployed to GitHub Pages on every push to `main`.
 
-## Features (MVP)
+## Features
 
 - **Infinite procedural world** — chunk-based generation with a deterministic border contract:
   neighboring chunks agree on their shared edges without ever seeing each other, so the world is
   seamless and truly endless. Same seed + level ⇒ identical world.
 - **Nine hand-authored canonical levels ("The Main Nine", 0–8)** — The Lobby, Parking Zone, Pipe
   Dreams, Electrical Station, Abandoned Office, The Terror Hotel, Lights Out, Thalassophobia and
-  Cave System, each with its own palette, geometry style, lighting, fog, decay and ambience.
-- **Backrooms aesthetics** — monotonous geometry, retro/dated procedural textures (wallpaper,
-  carpet, ceiling tile), buzzing/flickering fluorescents, fog, film grain and vignette, and a
-  hand-tuned palette per level — yellowed office, concrete brutalist, industrial dark (moss and
-  rust), bleached liminal, lights-out black, flooded depths, cave stone.
+  Cave System, verified against the [Backrooms wiki](https://backrooms.fandom.com/wiki/Category:The_Main_Nine)
+  (see the source-of-truth comment at the top of `levelProfile.ts`), each with its own surface
+  style, structural features (door frames, wall breaches, ceiling openings, pipe/duct runs),
+  lighting behavior, props, inhabitants and soundscape.
+- **Backrooms aesthetics** — nine distinct procedural surface painters (wallpaper, raw concrete,
+  riveted steel, cinder block, drywall, hotel damask, void black, wet tile, bare rock), per-level
+  lighting modes (fluorescent panels, caged industrial, emergency-only, or none at all), fog, film
+  grain and vignette.
 - **First-person controls** — arrows/WASD to move, mouse to look (pointer lock), Shift to sprint,
-  Esc to pause.
+  Esc to pause; on touch devices, an on-screen joystick, sprint button and drag-look.
 - **Health and stamina** — sprinting drains stamina; exhaustion locks sprint until you recover.
-  The full damage/heal pipeline is implemented and difficulty-scaled, ready for Phase 2.
-- **Procedural soundtrack** — the entire soundscape (drones, fluorescent hum, hollow wind, room
-  tone, footsteps, breathing, UI) is synthesized live with the Web Audio API behind an
-  `AudioEngine` interface, so file-based audio (mp3/ogg) can be swapped in without touching call
-  sites.
+  Difficulty-scaled damage from hostile entities on non-peaceful settings.
+- **Furniture and props** — deterministically placed, precisely collidable set dressing (chairs,
+  tables, beds, lockers, barrels, pipe stacks, transformers, vending machines, rubble, stalagmites
+  and more), instanced per chunk.
+- **Items** — bandages, adrenaline pills and a toggleable flashlight, spawned per level and
+  collected into a hotbar.
+- **Entities** — a handful of lore-appropriate hostiles/passives (Hound, Deathmoth, Skin-Stealer,
+  Smiler, and more) behind three shared behavior strategies (chase, stalk-and-freeze, drift),
+  thinned to nothing on peaceful difficulty.
+- **Sound** — a sampled `AudioEngine` plays downloaded CC0 ambience loops, footsteps and entity
+  cues where available, and falls back seamlessly to live Web Audio synthesis for everything else
+  — the game always has a full soundscape, on every level, even offline. See
+  [`public/audio/CREDITS.md`](public/audio/CREDITS.md) for the license/attribution of every
+  committed asset (CC0 / public domain only).
 - **Game flow** — splash screen, main menu (level select with preview, difficulty, music/SFX
   volume, single player now / multiplayer soon), loading screen, pause menu.
-- **Difficulties** — peaceful, easy, medium, hard (stamina economy now; damage/aggression columns
-  already wired for Phase 2).
+- **Difficulties** — peaceful, easy, medium, hard (stamina economy, item scarcity and enemy
+  aggression/damage all scale with it).
 
-### Phase 2 (planned, architecture in place)
+### Not yet built
 
-- Entities/enemies: `EntitySystem` already ticks inside the fixed-timestep loop; enemies are
-  registry entries, not refactors.
-- Items (adrenaline pills, bandage, flashlight): `Item` contract + registry + spawn tables on
-  level profiles + inventory slot on the player store are all present and empty.
 - Multiplayer: shown in the menu as "soon"; deterministic seeded generation is sync-friendly.
+- Level progression, save games: out of scope by design — every level is freely selectable, every
+  session starts fresh.
 
 ## Development
 
@@ -74,14 +84,16 @@ src/
 ├── app/          # Next.js App Router shell (splash / menu / play routes)
 ├── components/   # React: ui atoms, menus, HUD, R3F scene components
 ├── engine/       # Pure TypeScript game logic — no React imports
-│   ├── generation/  # seeded RNG, level profiles, chunks, border contract, LRU manager
+│   ├── generation/  # seeded RNG, level profiles, chunks, border contract, structural features, LRU manager
+│   ├── furniture/   # deterministic ground-prop catalog + placement
+│   ├── lighting/     # pure per-mode flicker model
 │   ├── player/      # movement, grid collision, health/stamina rules
-│   ├── audio/       # AudioEngine interface + procedural Web Audio backend
-│   ├── items/       # Phase 2: item contract + registry (empty in MVP)
-│   └── entities/    # Phase 2: entity contract + system (no-op in MVP)
+│   ├── audio/       # AudioEngine interface, sampled backend + procedural fallback
+│   ├── items/       # item contract + registry
+│   └── entities/    # entity contract, shared behavior strategies, lore-entity catalog
 ├── state/        # zustand stores: settings (persisted), game phase machine, HUD snapshots
-├── hooks/        # keyboard input
-└── config/       # tunables: constants, difficulty table
+├── hooks/        # keyboard/touch input, orientation gate
+└── config/       # tunables: constants, difficulty table, asset base-path helper
 ```
 
 Key decisions:
@@ -92,5 +104,12 @@ Key decisions:
   set per level (flyweight), chunk data cached in a bounded LRU, everything disposed on unmount.
 - **The simulation is fixed-timestep** (120 Hz) and framerate-independent; the DOM HUD subscribes
   to ~10 Hz snapshots so React never taxes the render loop.
+- **Audio assets always go through `assetUrl()`** (`src/config/assets.ts`) — Next.js does not
+  rewrite URLs inside `fetch()`, so a literal `"/audio/..."` path 404s under the GitHub Pages base
+  path even though it works on localhost.
+- **Audio licensing is CC0/public-domain only.** There is no credits screen in this app, so a
+  CC-BY asset would be a silent license violation; every committed file's source, author, license
+  and retrieval date is recorded in `public/audio/CREDITS.md`.
 
-See [PLAN.md](docs/PLAN.md) for the full implementation plan.
+See [PLAN.md](docs/PLAN.md), [PLAN-2.md](docs/PLAN-2.md), [PLAN-3.md](docs/PLAN-3.md) and
+[PLAN-4.md](docs/PLAN-4.md) for the full implementation history.

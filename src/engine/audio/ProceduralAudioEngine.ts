@@ -1,5 +1,35 @@
-import type { AmbienceId } from "../generation/levelProfile";
-import type { AudioEngine, FootstepSurface } from "./AudioEngine";
+import type { AmbienceId, FootstepSurface } from "../generation/levelProfile";
+import type { AudioEngine, EntityCueId } from "./AudioEngine";
+
+/**
+ * The nine per-level `AmbienceId`s (PLAN-4 §4.2) share exactly four
+ * synthesis recipes — widening the data model to nine ids gave each level
+ * its own audio-asset key without writing five new oscillator graphs
+ * (PLAN-4 D7). `SampledAudioEngine` still keys downloaded loops by the full
+ * nine ids; this is purely the procedural fallback's mapping.
+ */
+const RECIPE_BY_AMBIENCE: Record<AmbienceId, "hum" | "drone" | "wind" | "silence"> = {
+  lobbyHum: "hum",
+  stationBuzz: "hum",
+  parkingDrone: "drone",
+  pipeSteam: "drone",
+  floodedDeep: "drone",
+  hotelWind: "wind",
+  officeSilence: "silence",
+  blackSilence: "silence",
+  caveDrip: "silence",
+};
+
+/** Footstep filter per surface — carpet/hard existed before; wet/gravel are new (PLAN-4 §5). */
+const FOOTSTEP_TIMBRE: Record<
+  FootstepSurface,
+  { filterType: BiquadFilterType; frequency: number }
+> = {
+  carpet: { filterType: "lowpass", frequency: 380 },
+  hard: { filterType: "lowpass", frequency: 900 },
+  wet: { filterType: "lowpass", frequency: 650 },
+  gravel: { filterType: "bandpass", frequency: 1300 },
+};
 
 /**
  * Backrooms soundtrack, synthesized live with the Web Audio API: detuned
@@ -20,6 +50,11 @@ export class ProceduralAudioEngine implements AudioEngine {
   private currentAmbience: AmbienceId | null = null;
   private noiseBuffer: AudioBuffer | null = null;
   private disposed = false;
+
+  /** Exposed so `SampledAudioEngine` can share the same `AudioContext` (GameRoot composes them). */
+  get context(): AudioContext {
+    return this.ctx;
+  }
 
   constructor(context?: AudioContext) {
     this.ctx = context ?? new AudioContext();
@@ -113,8 +148,8 @@ export class ProceduralAudioEngine implements AudioEngine {
     this.stopAmbience();
     this.currentAmbience = ambience;
 
-    switch (ambience) {
-      case "fluorescentHum": {
+    switch (RECIPE_BY_AMBIENCE[ambience]) {
+      case "hum": {
         // The classic Level 0 soundscape: mains hum plus air-handler rumble.
         const hum = this.oscillator("sawtooth", 120, 0.02);
         const humFilter = this.ctx.createBiquadFilter();
@@ -129,7 +164,7 @@ export class ProceduralAudioEngine implements AudioEngine {
         this.oscillator("sine", 60, 0.015).connect(this.musicBus);
         break;
       }
-      case "deepDrone": {
+      case "drone": {
         this.oscillator("sine", 55, 0.05).connect(this.musicBus);
         const detuned = this.oscillator("sine", 55.7, 0.045);
         detuned.connect(this.musicBus);
@@ -138,7 +173,7 @@ export class ProceduralAudioEngine implements AudioEngine {
         this.noiseSource(0.03, "lowpass", 120).gain.connect(this.musicBus);
         break;
       }
-      case "windHollow": {
+      case "wind": {
         const wind = this.noiseSource(0.09, "bandpass", 420);
         wind.gain.connect(this.musicBus);
         // Slow sweep of the bandpass center: hollow corridors of moving air.
@@ -146,7 +181,7 @@ export class ProceduralAudioEngine implements AudioEngine {
         this.oscillator("sine", 92, 0.012).connect(this.musicBus);
         break;
       }
-      case "nearSilence": {
+      case "silence": {
         // Room tone at the edge of hearing; the scariest track is almost none.
         this.noiseSource(0.015, "lowpass", 100).gain.connect(this.musicBus);
         const tone = this.oscillator("sine", 210, 0.004);
@@ -175,13 +210,14 @@ export class ProceduralAudioEngine implements AudioEngine {
 
   playFootstep(surface: FootstepSurface, sprinting: boolean): void {
     if (this.disposed) return;
+    const timbre = FOOTSTEP_TIMBRE[surface];
     const source = this.ctx.createBufferSource();
     source.buffer = this.getNoiseBuffer();
     source.playbackRate.value = 0.9 + Math.random() * 0.3 + (sprinting ? 0.15 : 0);
 
     const filter = this.ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = surface === "carpet" ? 380 : 900;
+    filter.type = timbre.filterType;
+    filter.frequency.value = timbre.frequency;
 
     const envelope = this.ctx.createGain();
     const now = this.ctx.currentTime;
@@ -199,6 +235,29 @@ export class ProceduralAudioEngine implements AudioEngine {
       filter.disconnect();
       envelope.disconnect();
     };
+
+    // Wet floors get a brief bright "splash" transient layered on top.
+    if (surface === "wet") {
+      const splash = this.ctx.createBufferSource();
+      splash.buffer = this.getNoiseBuffer();
+      const splashFilter = this.ctx.createBiquadFilter();
+      splashFilter.type = "bandpass";
+      splashFilter.frequency.value = 2200;
+      splashFilter.Q.value = 0.6;
+      const splashEnvelope = this.ctx.createGain();
+      splashEnvelope.gain.setValueAtTime(0, now);
+      splashEnvelope.gain.linearRampToValueAtTime(peak * 0.4, now + 0.006);
+      splashEnvelope.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      splash.connect(splashFilter);
+      splashFilter.connect(splashEnvelope);
+      splashEnvelope.connect(this.sfxBus);
+      splash.start(now, Math.random(), 0.08);
+      splash.onended = () => {
+        splash.disconnect();
+        splashFilter.disconnect();
+        splashEnvelope.disconnect();
+      };
+    }
   }
 
   playUiClick(): void {
@@ -265,8 +324,25 @@ export class ProceduralAudioEngine implements AudioEngine {
     };
   }
 
-  playGrowl(): void {
+  playEntityCue(cue: EntityCueId): void {
     if (this.disposed) return;
+    switch (cue) {
+      case "growl":
+        this.playGrowlCue();
+        break;
+      case "shriek":
+        this.playShriekCue();
+        break;
+      case "chitter":
+        this.playChitterCue();
+        break;
+      case "laugh":
+        this.playLaughCue();
+        break;
+    }
+  }
+
+  private playGrowlCue(): void {
     const now = this.ctx.currentTime;
     const source = this.ctx.createBufferSource();
     source.buffer = this.getNoiseBuffer();
@@ -286,6 +362,98 @@ export class ProceduralAudioEngine implements AudioEngine {
     source.onended = () => {
       source.disconnect();
       filter.disconnect();
+      envelope.disconnect();
+    };
+  }
+
+  /** A rising, thin noise burst — a startled shriek. */
+  private playShriekCue(): void {
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.getNoiseBuffer();
+    source.playbackRate.value = 1.6;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.Q.value = 4;
+    filter.frequency.setValueAtTime(900, now);
+    filter.frequency.exponentialRampToValueAtTime(2600, now + 0.35);
+    const envelope = this.ctx.createGain();
+    envelope.gain.setValueAtTime(0, now);
+    envelope.gain.linearRampToValueAtTime(0.18, now + 0.05);
+    envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    source.connect(filter);
+    filter.connect(envelope);
+    envelope.connect(this.sfxBus);
+    source.start(now, Math.random(), 0.5);
+    source.onended = () => {
+      source.disconnect();
+      filter.disconnect();
+      envelope.disconnect();
+    };
+  }
+
+  /** A noise burst with fast amplitude modulation — insect-like chittering. */
+  private playChitterCue(): void {
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.getNoiseBuffer();
+    source.playbackRate.value = 2.4;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 1400;
+    const envelope = this.ctx.createGain();
+    envelope.gain.setValueAtTime(0.001, now);
+    envelope.gain.linearRampToValueAtTime(0.16, now + 0.02);
+    envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    // A fast tremolo on top of the envelope reads as rapid clicking rather
+    // than a single smooth burst.
+    const tremolo = this.ctx.createOscillator();
+    tremolo.frequency.value = 22;
+    const tremoloGain = this.ctx.createGain();
+    tremoloGain.gain.value = 0.1;
+    tremolo.connect(tremoloGain);
+    tremoloGain.connect(envelope.gain);
+    source.connect(filter);
+    filter.connect(envelope);
+    envelope.connect(this.sfxBus);
+    source.start(now, Math.random(), 0.45);
+    tremolo.start(now);
+    tremolo.stop(now + 0.45);
+    source.onended = () => {
+      source.disconnect();
+      filter.disconnect();
+      envelope.disconnect();
+      tremolo.disconnect();
+      tremoloGain.disconnect();
+    };
+  }
+
+  /** A wavering, off-pitch tone — an unsettling laugh. */
+  private playLaughCue(): void {
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.value = 260;
+    const wobble = this.ctx.createOscillator();
+    wobble.frequency.value = 7;
+    const wobbleGain = this.ctx.createGain();
+    wobbleGain.gain.value = 60;
+    wobble.connect(wobbleGain);
+    wobbleGain.connect(osc.frequency);
+    const envelope = this.ctx.createGain();
+    envelope.gain.setValueAtTime(0, now);
+    envelope.gain.linearRampToValueAtTime(0.1, now + 0.05);
+    envelope.gain.linearRampToValueAtTime(0.001, now + 0.6);
+    osc.connect(envelope);
+    envelope.connect(this.sfxBus);
+    osc.start(now);
+    wobble.start(now);
+    osc.stop(now + 0.65);
+    wobble.stop(now + 0.65);
+    osc.onended = () => {
+      osc.disconnect();
+      wobble.disconnect();
+      wobbleGain.disconnect();
       envelope.disconnect();
     };
   }

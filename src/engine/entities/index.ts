@@ -1,7 +1,9 @@
 import type { ChunkSpawn } from "../generation/cells";
 import { filterSpawnsByKeepFraction } from "../generation/spawnFilter";
+import type { Rng } from "../generation/rng";
 import type { ObstacleWorld } from "../player/collision";
 import { Registry } from "../registry";
+import { ENTITY_CATALOG } from "./catalog";
 import { createWandererDefinition } from "./wanderer";
 
 /**
@@ -11,6 +13,8 @@ import { createWandererDefinition } from "./wanderer";
  */
 export interface EntityContext {
   playerPosition: { x: number; z: number };
+  /** Unit vector of the player's facing direction (XZ) — lets a `createStalker` freeze when observed. */
+  playerForward: { x: number; z: number };
   /** Routed through the difficulty-scaled damage pipeline. */
   damagePlayer(amount: number): void;
   deltaSeconds: number;
@@ -22,7 +26,8 @@ export interface EntityContext {
 
 export interface EntityDefinition {
   id: string;
-  spawn(x: number, z: number): EntityInstance;
+  /** Seeded so entity motion is reproducible and unit-testable with no `Math.random` mocking. */
+  spawn(x: number, z: number, rng: Rng): EntityInstance;
 }
 
 export interface EntityInstance {
@@ -91,4 +96,8 @@ export function activeEntitySpawns(
   return filterSpawnsByKeepFraction(cx, cz, entities, aggression);
 }
 
+// `wanderer` is the generic fallback so no spawn table is ever empty
+// mid-refactor; it stays registered even though most levels now list a named
+// lore entity instead (PLAN-4 §9.2/§9.5).
 entityRegistry.register(createWandererDefinition());
+for (const definition of ENTITY_CATALOG) entityRegistry.register(definition);

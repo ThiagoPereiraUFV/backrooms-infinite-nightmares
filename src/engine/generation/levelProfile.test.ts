@@ -1,7 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { getLevelProfile, LEVELS } from "./levelProfile";
+import { entityRegistry } from "@/engine/entities";
+import { itemRegistry } from "@/engine/items";
+import {
+  getLevelProfile,
+  LEVELS,
+  type FootstepSurface,
+  type LightingMode,
+  type SurfaceStyle,
+} from "./levelProfile";
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const SURFACE_STYLES: readonly SurfaceStyle[] = [
+  "dampWallpaper",
+  "rawConcrete",
+  "rivetedSteel",
+  "rustedUtility",
+  "officeDrywall",
+  "hotelPaper",
+  "voidBlack",
+  "wetTile",
+  "bareRock",
+];
+const LIGHTING_MODES: readonly LightingMode[] = [
+  "fluorescentPanels",
+  "cagedIndustrial",
+  "emergencyOnly",
+  "none",
+];
+const FOOTSTEP_SURFACES: readonly FootstepSurface[] = ["carpet", "hard", "wet", "gravel"];
 
 describe("LEVELS (the Main Nine roster)", () => {
   it("is non-empty with unique level numbers and unique, non-empty names", () => {
@@ -50,6 +76,30 @@ describe("LEVELS (the Main Nine roster)", () => {
       for (const entry of profile.spawnTable) {
         expect(entry.id.length).toBeGreaterThan(0);
         expect(entry.weight).toBeGreaterThanOrEqual(0);
+      }
+
+      expect(SURFACE_STYLES).toContain(profile.surfaceStyle);
+      expect(LIGHTING_MODES).toContain(profile.lighting);
+      expect(FOOTSTEP_SURFACES).toContain(profile.footstepSurface);
+      for (const rate of Object.values(profile.featureRates)) {
+        expect(rate).toBeGreaterThanOrEqual(0);
+        expect(rate).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("gives every level a distinct ambience id (no two levels share an audio loop)", () => {
+    const ambiences = LEVELS.map((profile) => profile.ambience);
+    expect(new Set(ambiences).size).toBe(ambiences.length);
+  });
+
+  it("resolves every spawnTable id in the item or entity registry", () => {
+    for (const profile of LEVELS) {
+      for (const entry of profile.spawnTable) {
+        const known = itemRegistry.has(entry.id) || entityRegistry.has(entry.id);
+        expect(known, `spawnTable id "${entry.id}" on level ${profile.level} is unregistered`).toBe(
+          true,
+        );
       }
     }
   });

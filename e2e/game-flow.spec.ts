@@ -119,3 +119,26 @@ test("P pauses the game like Esc", async ({ page, browserName }) => {
   await page.keyboard.press("KeyP");
   await expect(page.getByTestId("pause-menu")).toBeVisible();
 });
+
+test("no response under /audio/** is ever an error status while playing", async ({ page }) => {
+  // The regression this guards: SampledAudioEngine fetches manifest URLs
+  // that must be routed through assetUrl() — a literal "/audio/..." string
+  // works on localhost and 404s under the GitHub Pages base path. Run with
+  // NEXT_PUBLIC_BASE_PATH set (as CI does) to actually exercise that trap.
+  const badAudioResponses: string[] = [];
+  page.on("response", (response) => {
+    if (response.url().includes("/audio/") && response.status() >= 400) {
+      badAudioResponses.push(`${response.status()} ${response.url()}`);
+    }
+  });
+
+  await page.goto("menu/");
+  await page.getByTestId("start-game").click();
+  await expect(page.getByTestId("enter-game")).toBeVisible();
+  // Entering (even without a successful pointer lock) is what constructs the
+  // audio engines and kicks off the level's ambience fetch.
+  await page.getByTestId("enter-game").click();
+  await page.waitForTimeout(2_000);
+
+  expect(badAudioResponses).toEqual([]);
+});

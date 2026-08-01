@@ -1,6 +1,9 @@
-import type { AmbienceId } from "../generation/levelProfile";
+import type { AmbienceId, FootstepSurface } from "../generation/levelProfile";
 
-export type FootstepSurface = "carpet" | "hard";
+export type { FootstepSurface };
+
+/** One-shot entity proximity cues. A parameterized method keeps the interface narrow (ISP). */
+export type EntityCueId = "growl" | "shriek" | "chitter" | "laugh";
 
 /**
  * Everything gameplay code may do with audio. The MVP backend synthesizes
@@ -17,7 +20,7 @@ export interface AudioEngine {
   /** One-shot chime when an item is picked up. */
   playPickup(): void;
   /** One-shot proximity cue when a hostile entity is first noticed nearby. */
-  playGrowl(): void;
+  playEntityCue(cue: EntityCueId): void;
   setMusicVolume(volume: number): void;
   setSfxVolume(volume: number): void;
   /** Suspends output (pause menu). */
@@ -35,7 +38,7 @@ export class NullAudioEngine implements AudioEngine {
   playUiClick(): void {}
   playBreath(): void {}
   playPickup(): void {}
-  playGrowl(): void {}
+  playEntityCue(): void {}
   setMusicVolume(): void {}
   setSfxVolume(): void {}
   suspend(): void {}

@@ -11,7 +11,7 @@ import {
 } from "../generation/chunk";
 import { getLevelProfile } from "../generation/levelProfile";
 import { createRng } from "../generation/rng";
-import { furnitureRegistry } from "./catalog";
+import { FURNITURE_CATALOG, furnitureRegistry } from "./catalog";
 import { placeFurniture, type FurniturePlacement } from "./placeFurniture";
 
 /** Mirrors the generator's anchor set from the public border contract. */
@@ -137,6 +137,49 @@ describe("placeFurniture", () => {
         profile: { furnitureDensity: 0.5, furnitureWeights: {}, ceilingHeight: 3 },
       }),
     ).toEqual([]);
+  });
+
+  it("pickDef's weighted draw is unaffected by catalog size: explicit zero-weight entries change nothing", () => {
+    // PLAN-4 added ~10 new catalog entries. `pickDef` filters out any entry
+    // whose weight is <= 0 *before* drawing and rolls exactly one
+    // `rng.next()` regardless of how many entries survive the filter — so a
+    // level whose `furnitureWeights` never mentions a new id must produce
+    // byte-identical output whether or not that id even exists in
+    // FURNITURE_CATALOG. Proven here by explicitly zeroing every catalog id
+    // not already in the active weight table and asserting the output is
+    // unchanged; if `pickDef` ever regressed to rolling once per catalog
+    // entry, or let an explicit-zero entry leak into the weighted draw, the
+    // two runs below would diverge (PLAN-4 §8/§16).
+    const activeWeights = { chair: 2, table: 1, crate: 0.5 };
+    const wideWeights: Record<string, number> = { ...activeWeights };
+    for (const def of FURNITURE_CATALOG) {
+      if (!(def.id in wideWeights)) wideWeights[def.id] = 0;
+    }
+    expect(Object.keys(wideWeights).length).toBeGreaterThan(Object.keys(activeWeights).length);
+
+    const buildArgs = (weights: Record<string, number>) => ({
+      cells: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
+      anchors: [[CHUNK_SIZE >> 1, CHUNK_SIZE >> 1]] as [number, number][],
+      rng: createRng(2024),
+      profile: { furnitureDensity: 0.3, furnitureWeights: weights, ceilingHeight: 3 },
+      originX: 0,
+      originZ: 0,
+    });
+
+    const narrow = placeFurniture(buildArgs(activeWeights));
+    const wide = placeFurniture(buildArgs(wideWeights));
+    expect(wide).toEqual(narrow);
+    expect(narrow.length).toBeGreaterThan(0);
+  });
+
+  it("pins a determinism fixture for one roster level's furniture at a fixed seed (regression guard)", () => {
+    // A snapshot is the pinned fixture the plan asks for: any future change
+    // to placement order, pickDef's draw, or the shared catalog that alters
+    // this level's output will fail this test, even though nothing else
+    // in the suite happens to exercise this exact seed/chunk.
+    const level0 = getLevelProfile(0);
+    const chunk = generateChunk(0xf17ce5, 2, -5, level0);
+    expect(chunk.furniture).toMatchSnapshot();
   });
 
   it("every placement is valid across levels and chunks", () => {

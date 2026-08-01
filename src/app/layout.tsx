@@ -1,10 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
   title: "Backrooms - Infinite Nightmares",
   description:
     "You noclipped out of reality. Explore infinite procedurally generated backrooms levels — if you don't hear the fluorescent hum, run.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Backrooms",
+  },
 };
 
 export const viewport: Viewport = {
@@ -25,6 +31,7 @@ export default function RootLayout({
       <body>
         {children}
         <div className="filmOverlay" aria-hidden="true" />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

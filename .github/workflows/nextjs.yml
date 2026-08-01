@@ -2,8 +2,11 @@
 name: Deploy Next.js site to Pages
 
 on:
-  # Runs on pushes targeting the default branch
-  push:
+  # Runs once the CI workflow finishes on main, so we never deploy a commit
+  # that failed lint/test/build/e2e/audit.
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: ["main"]
 
   # Allows you to run this workflow manually from the Actions tab
@@ -30,9 +33,14 @@ jobs:
   # Build job
   build:
     runs-on: ubuntu-latest
+    # Skip if the workflow_run that triggered us wasn't a success (manual
+    # workflow_dispatch runs always proceed).
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       # This repo uses Yarn 4 via the packageManager field; corepack provides it.
       - name: Enable corepack
         run: corepack enable

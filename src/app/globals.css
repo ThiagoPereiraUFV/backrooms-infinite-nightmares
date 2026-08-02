@@ -29,10 +29,19 @@ body {
   font-family: var(--font-mono);
   overflow: hidden;
   color-scheme: dark;
+  /* No text in this app is ever meant to be copied; without this, dragging a
+     thumb across HUD/menu labels (or a long-press on touch) paints a native
+     selection highlight / iOS copy callout over gameplay chrome. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 button {
   font-family: inherit;
+  /* Removes the ~300ms tap delay and double-tap-to-zoom on touch, which
+     otherwise reads as an unresponsive or accidentally-zooming button. */
+  touch-action: manipulation;
 }
 
 a {

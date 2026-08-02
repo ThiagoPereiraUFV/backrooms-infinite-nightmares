@@ -94,6 +94,7 @@
   font-family: inherit;
   letter-spacing: 0.08em;
   text-transform: capitalize;
+  touch-action: manipulation;
 }
 
 .soonTag {

@@ -49,4 +49,10 @@ describe("gameStore", () => {
       expect(useGameStore.getState().phase).toBe("menu");
     }
   });
+
+  it("is a no-op when already at menu", () => {
+    useGameStore.setState({ phase: "menu" });
+    useGameStore.getState().quitToMenu();
+    expect(useGameStore.getState().phase).toBe("menu");
+  });
 });

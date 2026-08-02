@@ -60,6 +60,14 @@ describe("createChaser", () => {
     expect(damages).toHaveLength(1);
     expect(damages[0]).toBeCloseTo(params.damagePerSecond / 60, 5);
   });
+
+  it("does not move (and does not divide by zero) when aggroed exactly on top of the player", () => {
+    const entity = createChaser("test", params)(0, 0, createRng(6));
+    const context = baseContext({ playerPosition: { x: 0, z: 0 } });
+    entity.update(context);
+    expect(entity.x).toBe(0);
+    expect(entity.z).toBe(0);
+  });
 });
 
 describe("createStalker", () => {
@@ -86,6 +94,27 @@ describe("createStalker", () => {
     // Player at (5, 0) looking back toward the origin (-X): directly at the entity.
     const context = baseContext({ playerPosition: { x: 5, z: 0 }, playerForward: { x: -1, z: 0 } });
     for (let i = 0; i < 30; i++) entity.update(context);
+    expect(entity.x).toBe(0);
+    expect(entity.z).toBe(0);
+  });
+
+  it("deals contact damage once within contactRadius of the player", () => {
+    const entity = createStalker("test", params)(0, 0, createRng(1));
+    const damages: number[] = [];
+    const context = baseContext({
+      playerPosition: { x: 0.2, z: 0 },
+      damagePlayer: (amount) => damages.push(amount),
+      deltaSeconds: 1 / 60,
+    });
+    entity.update(context);
+    expect(damages).toHaveLength(1);
+    expect(damages[0]).toBeCloseTo(params.damagePerSecond / 60, 5);
+  });
+
+  it("does not move (and does not divide by zero) exactly on top of the player", () => {
+    const entity = createStalker("test", params)(0, 0, createRng(1));
+    const context = baseContext({ playerPosition: { x: 0, z: 0 } });
+    entity.update(context);
     expect(entity.x).toBe(0);
     expect(entity.z).toBe(0);
   });

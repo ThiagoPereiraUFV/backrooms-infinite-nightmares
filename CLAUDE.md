@@ -19,7 +19,7 @@ yarn lint          # ESLint (flat config, includes React Compiler rules)
 yarn format:check  # Prettier (yarn format to write)
 yarn typecheck     # tsc --noEmit
 yarn test          # Vitest (unit + component, jsdom)
-yarn test:coverage # enforces thresholds on engine/state/config (90/85%+)
+yarn test:coverage # enforces 100% thresholds on engine/state/config
 yarn build         # static export to out/
 yarn e2e           # Playwright against out/ — run yarn build FIRST
 yarn audit         # yarn npm audit --severity high

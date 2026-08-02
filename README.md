@@ -67,7 +67,7 @@ yarn lint          # ESLint
 yarn format:check  # Prettier
 yarn typecheck     # tsc --noEmit
 yarn test          # Vitest unit + component tests
-yarn test:coverage # with coverage thresholds (engine/state/config: 90%+)
+yarn test:coverage # with coverage thresholds (engine/state/config: 100%)
 yarn build         # static export to out/
 yarn e2e           # Playwright against the exported build (yarn build first)
 yarn audit         # dependency audit (fails on high/critical)

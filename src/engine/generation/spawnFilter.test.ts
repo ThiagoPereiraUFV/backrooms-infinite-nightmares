@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { CELL_SIZE, CHUNK_WORLD_SIZE } from "@/config/constants";
 import type { ChunkSpawn } from "./cells";
-import { filterSpawnsByKeepFraction, spawnKey } from "./spawnFilter";
+import { filterSpawnsByKeepFraction, spawnKey, spawnWorldPosition } from "./spawnFilter";
 
 const spawns: ChunkSpawn[] = Array.from({ length: 200 }, (_, i) => ({
   id: `item-${i % 4}`,
@@ -44,5 +45,15 @@ describe("spawnKey", () => {
     expect(spawnKey(0, 0, spawn)).not.toBe(spawnKey(1, 0, spawn));
     expect(spawnKey(0, 0, spawn)).not.toBe(spawnKey(0, 0, { ...spawn, cellX: 5 }));
     expect(spawnKey(0, 0, spawn)).not.toBe(spawnKey(0, 0, { ...spawn, id: "adrenaline" }));
+  });
+});
+
+describe("spawnWorldPosition", () => {
+  it("resolves a cell's world-space center, offset by its chunk", () => {
+    expect(spawnWorldPosition(0, 0, 0, 0)).toEqual({ x: CELL_SIZE / 2, z: CELL_SIZE / 2 });
+    expect(spawnWorldPosition(1, -1, 2, 3)).toEqual({
+      x: CHUNK_WORLD_SIZE + 2.5 * CELL_SIZE,
+      z: -CHUNK_WORLD_SIZE + 3.5 * CELL_SIZE,
+    });
   });
 });

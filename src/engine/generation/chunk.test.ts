@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { CELL_SIZE, CHUNK_SIZE } from "@/config/constants";
-import { CELL_OPEN, cellIndex, edgeGateways, generateChunk, type ChunkData } from "./chunk";
+import {
+  CELL_OPEN,
+  CELL_WALL,
+  cellIndex,
+  edgeGateways,
+  ensureConnectivity,
+  generateChunk,
+  type ChunkData,
+} from "./chunk";
 import { getLevelProfile } from "./levelProfile";
 
 const WORLD_SEED = 0xdead;
@@ -240,6 +248,34 @@ describe("generateChunk", () => {
     expect(chunk.lights.length).toBeGreaterThan(0);
     for (const idx of chunk.lights) {
       expect(chunk.cells[idx]).toBe(CELL_OPEN);
+    }
+  });
+});
+
+describe("ensureConnectivity (carve directions)", () => {
+  // Real generation always makes anchors[0] the westmost gateway cell
+  // (x = 0), so a disconnected anchor's x is never less than the target's —
+  // the walk's x-increment direction can't fire through generateChunk.
+  // Synthetic anchors exercise it (and the rarer z-decrement direction)
+  // directly, all cells starting solid so every carve is actually needed.
+  it("carves toward the target in every x/z direction the walk can take", () => {
+    const cells = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE).fill(CELL_WALL);
+    const target: [number, number] = [10, 5];
+    const anchors: [number, number][] = [
+      target,
+      [2, 5], // x < targetX: increment-x leg only
+      [10, 12], // same x as target, z > targetZ: decrement-z leg only
+    ];
+
+    ensureConnectivity(cells, anchors);
+
+    for (const [x, z] of anchors) {
+      expect(cells[cellIndex(x, z)]).toBe(CELL_OPEN);
+    }
+    // Every anchor ends up mutually reachable, including via the carved paths.
+    const region = reachableFrom({ cells } as ChunkData, ...target);
+    for (const [x, z] of anchors) {
+      expect(region.has(cellIndex(x, z))).toBe(true);
     }
   });
 });

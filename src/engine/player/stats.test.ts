@@ -125,4 +125,15 @@ describe("boostStamina", () => {
     boostStamina(stats, -30);
     expect(stats.stamina).toBe(50);
   });
+
+  it("leaves exhaustion untouched when stamina is still zero after the boost", () => {
+    const stats = createStats();
+    stats.stamina = 0;
+    stats.exhausted = true;
+    stats.staminaRegenCooldown = 2;
+    boostStamina(stats, -5); // clamped to 0 — stamina stays exactly 0
+    expect(stats.stamina).toBe(0);
+    expect(stats.exhausted).toBe(true);
+    expect(stats.staminaRegenCooldown).toBe(2);
+  });
 });

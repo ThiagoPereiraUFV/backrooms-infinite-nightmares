@@ -121,4 +121,12 @@ describe("pickWeighted", () => {
     expect(counts.b / counts.a).toBeGreaterThan(2.5);
     expect(counts.b / counts.a).toBeLessThan(3.5);
   });
+
+  it("falls back to the last key when roll never dips below zero (roll === total exactly)", () => {
+    // next() === 1 makes roll land exactly on `total`; subtracting every
+    // weight in turn reaches exactly 0, which never satisfies `< 0`, so the
+    // loop exhausts and the safety-net return after it is what fires.
+    const edgeRng = { next: () => 1 } as unknown as Parameters<typeof pickWeighted>[0];
+    expect(pickWeighted(edgeRng, { a: 1, b: 1 })).toBe("b");
+  });
 });

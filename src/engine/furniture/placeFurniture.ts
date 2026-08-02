@@ -222,6 +222,10 @@ export function placeFurniture(args: PlaceFurnitureArgs): FurniturePlacement[] {
     return sides.some(([dx, dz, strip]) => {
       const nx = cellX + dx;
       const nz = cellZ + dz;
+      // Every caller passes a cellX/cellZ from isCandidateCell's 1..CHUNK_SIZE-2
+      // range, so a ±1 neighbor is always in [0, CHUNK_SIZE) — this guards a
+      // narrower contract than the type allows, for any future caller.
+      /* v8 ignore next */
       if (nx < 0 || nx >= CHUNK_SIZE || nz < 0 || nz >= CHUNK_SIZE) return false;
       if (cells[cellIndex(nx, nz)] !== CELL_OPEN) return false;
       if (aabbsOverlap(strip, aabb)) return false;
@@ -241,6 +245,9 @@ export function placeFurniture(args: PlaceFurnitureArgs): FurniturePlacement[] {
       const { ex, ez } = yawExpandedHalf(def, yaw);
       const x0 = cellX * CELL_SIZE;
       const z0 = cellZ * CELL_SIZE;
+      // No FURNITURE_CATALOG entry's footprint is close to CELL_SIZE today,
+      // so this never trips — a guard against a future oversized piece.
+      /* v8 ignore next */
       if (2 * ex > CELL_SIZE - 2 * EDGE_INSET || 2 * ez > CELL_SIZE - 2 * EDGE_INSET) return null;
       const x = rng.range(x0 + EDGE_INSET + ex, x0 + CELL_SIZE - EDGE_INSET - ex);
       const z = rng.range(z0 + EDGE_INSET + ez, z0 + CELL_SIZE - EDGE_INSET - ez);
@@ -305,6 +312,10 @@ export function placeFurniture(args: PlaceFurnitureArgs): FurniturePlacement[] {
   /** Cluster: a base piece plus neighbors dropped nearby (same/adjacent cell). */
   const placeCluster = (cellX: number, cellZ: number): void => {
     const baseDef = pickDef(rng, weights, () => true, false);
+    // Unreachable: placeFurniture's entry guard already proved some catalog
+    // def has positive weight, and this draw uses that same unrestricted,
+    // unboosted weight table — pickDef can't return null here.
+    /* v8 ignore next */
     if (!baseDef) return;
     const base = tryPlacePiece(baseDef, cellX, cellZ);
     if (!base) return;
@@ -348,6 +359,9 @@ export function placeFurniture(args: PlaceFurnitureArgs): FurniturePlacement[] {
         placeCluster(cellX, cellZ);
       } else {
         const def = pickDef(rng, weights, () => true, false);
+        // Unreachable: same unrestricted, unboosted draw as placeCluster's
+        // base piece above — the entry guard already guarantees a hit.
+        /* v8 ignore next */
         if (def) {
           const piece = tryPlacePiece(def, cellX, cellZ);
           if (piece) placements.push(piece);

@@ -272,7 +272,15 @@ describe("placeFurniture", () => {
       cells: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
       anchors: [[CHUNK_SIZE >> 1, CHUNK_SIZE >> 1]],
       rng,
-      profile: { furnitureDensity: 1, furnitureWeights: { chair: 1, table: 1 }, ceilingHeight: 5 },
+      // Low density (not 1): only a handful of cells need to attempt a
+      // placement to prove the fallback fires — max density here just makes
+      // the quadratic overlap/corridor checks across ~200 cells slow for
+      // no extra coverage.
+      profile: {
+        furnitureDensity: 0.2,
+        furnitureWeights: { chair: 1, table: 1 },
+        ceilingHeight: 5,
+      },
       originX: 0,
       originZ: 0,
     });
@@ -329,7 +337,9 @@ describe("placeFurniture", () => {
       cells: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
       anchors: [[CHUNK_SIZE >> 1, CHUNK_SIZE >> 1]],
       rng: createRng(7),
-      profile: { furnitureDensity: 1, furnitureWeights: { chair: 1 }, ceilingHeight: 5 },
+      // Low density: a handful of placements is enough to prove the point,
+      // and keeps the quadratic overlap/corridor checks fast.
+      profile: { furnitureDensity: 0.2, furnitureWeights: { chair: 1 }, ceilingHeight: 5 },
       originX: 0,
       originZ: 0,
     });
@@ -387,8 +397,12 @@ describe("placeFurniture", () => {
       cells: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
       anchors: [[CHUNK_SIZE >> 1, CHUNK_SIZE >> 1]],
       rng: createRng(99),
+      // Density well under 1: still gives many chances at the ~15%
+      // roll<0.15 stack branch with this seed, without the O(n^2)
+      // overlap/corridor cost of placing on nearly every one of the ~200
+      // candidate cells.
       profile: {
-        furnitureDensity: 1,
+        furnitureDensity: 0.3,
         furnitureWeights: { [nonStackable!.id]: 1 },
         ceilingHeight: 5,
       },

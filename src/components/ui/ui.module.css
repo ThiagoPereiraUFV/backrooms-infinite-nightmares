@@ -82,6 +82,7 @@
   height: 4px;
   background: var(--accent-dim);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .slider::-webkit-slider-thumb {

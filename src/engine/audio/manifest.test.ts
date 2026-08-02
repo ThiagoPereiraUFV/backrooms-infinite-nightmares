@@ -11,7 +11,10 @@ describe("MANIFEST", () => {
     ];
     expect(allPaths.length).toBeGreaterThan(0);
     for (const path of allPaths) {
-      expect(path).toMatch(/^\/audio\//);
+      // Not anchored to the start: assetUrl() prepends NEXT_PUBLIC_BASE_PATH
+      // (set in CI/production, empty locally), so the literal "/audio/..."
+      // segment may not be at index 0.
+      expect(path).toMatch(/\/audio\//);
     }
   });
 

@@ -72,6 +72,24 @@ describe("resolveMovement", () => {
     expect(result.x).toBe(2);
   });
 
+  it("moving in -z is unaffected by an obstacle that starts behind the player", () => {
+    // Broad-phase-visible (its top edge is within the query rect) but its
+    // minZ already sits south of the player, so it can never block a move
+    // toward smaller z: the dz < 0 resolution branch's condition is false.
+    const obstacleBehind: ObstacleAabb = { minX: 0, maxX: 4, minZ: 2.3, maxZ: 4 };
+    const result = resolveMovement(worldOf(obstacleBehind), 2, 2, 0, -1, RADIUS);
+    expect(result.z).toBeCloseTo(1);
+  });
+
+  it("never tunnels through a wall on the z axis with repeated small steps", () => {
+    const wallSouth = worldOf(wallCell(0, 1));
+    let pos = { x: 2, z: 2 };
+    for (let i = 0; i < 200; i++) {
+      pos = resolveMovement(wallSouth, pos.x, pos.z, 0, 0.05, RADIUS);
+    }
+    expect(pos.z).toBeLessThanOrEqual(CELL_SIZE - RADIUS);
+  });
+
   it("never tunnels through with repeated small steps", () => {
     let pos = { x: 2, z: 2 };
     for (let i = 0; i < 200; i++) {

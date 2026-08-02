@@ -149,6 +149,9 @@ export class ChunkManager implements ObstacleWorld {
     for (let ring = 0; ring < center; ring++) {
       for (let z = center - ring; z <= center + ring; z++) {
         for (let x = center - ring; x <= center + ring; x++) {
+          // ring 0 checks only the center cell, always open (see below) —
+          // the scan-outward fallback for other rings never actually runs.
+          /* v8 ignore next 3 */
           if (chunk.cells[cellIndex(x, z)] === CELL_OPEN) {
             return { x: (x + 0.5) * CELL_SIZE, z: (z + 0.5) * CELL_SIZE };
           }
@@ -156,6 +159,7 @@ export class ChunkManager implements ObstacleWorld {
       }
     }
     // Unreachable: generation guarantees the chunk center is open.
+    /* v8 ignore next */
     return { x: (center + 0.5) * CELL_SIZE, z: (center + 0.5) * CELL_SIZE };
   }
 }

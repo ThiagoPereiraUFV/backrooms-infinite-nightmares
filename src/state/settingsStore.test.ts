@@ -47,6 +47,14 @@ describe("settingsStore", () => {
     expect(useSettingsStore.getState().sfxVolume).toBe(0);
   });
 
+  it("falls back to 1 for a non-finite volume", () => {
+    const { setMusicVolume, setSfxVolume } = useSettingsStore.getState();
+    setMusicVolume(Number.NaN);
+    setSfxVolume(Number.POSITIVE_INFINITY);
+    expect(useSettingsStore.getState().musicVolume).toBe(1);
+    expect(useSettingsStore.getState().sfxVolume).toBe(1);
+  });
+
   it("rejects unknown difficulties", () => {
     useSettingsStore.getState().setDifficulty("nightmare" as never);
     expect(useSettingsStore.getState().difficulty).toBe("peaceful");
@@ -97,5 +105,31 @@ describe("settingsStore", () => {
     expect(useSettingsStore.getState().level).toBe(LEVELS[0].level);
     expect(useSettingsStore.getState().difficulty).toBe("hard");
     expect(useSettingsStore.getState().musicVolume).toBe(0.4);
+  });
+
+  it("rehydrates non-boolean persisted audio flags to their defaults", async () => {
+    localStorage.setItem(
+      "bin-settings",
+      JSON.stringify({
+        state: { musicEnabled: "yes", sfxEnabled: 1 },
+        version: 0,
+      }),
+    );
+    await useSettingsStore.persist.rehydrate();
+    expect(useSettingsStore.getState().musicEnabled).toBe(true);
+    expect(useSettingsStore.getState().sfxEnabled).toBe(true);
+  });
+
+  it("rehydrates valid persisted boolean audio flags as-is", async () => {
+    localStorage.setItem(
+      "bin-settings",
+      JSON.stringify({
+        state: { musicEnabled: false, sfxEnabled: false },
+        version: 0,
+      }),
+    );
+    await useSettingsStore.persist.rehydrate();
+    expect(useSettingsStore.getState().musicEnabled).toBe(false);
+    expect(useSettingsStore.getState().sfxEnabled).toBe(false);
   });
 });

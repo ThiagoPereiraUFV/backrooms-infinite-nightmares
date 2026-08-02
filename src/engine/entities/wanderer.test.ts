@@ -135,4 +135,18 @@ describe("EntitySystem", () => {
     system.clear();
     expect(system.count).toBe(0);
   });
+
+  it("exposes [key, entity] pairs via entries() and ticks every entity on update()", () => {
+    const system = new EntitySystem();
+    const entity = spawnWanderer(5, 5);
+    let ticks = 0;
+    entity.update = () => {
+      ticks++;
+    };
+    system.add(entity, "chunk:5,5:wanderer:1,1");
+    expect([...system.entries()]).toEqual([["chunk:5,5:wanderer:1,1", entity]]);
+
+    system.update(baseContext());
+    expect(ticks).toBe(1);
+  });
 });

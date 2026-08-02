@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CELL_SIZE, CHUNK_SIZE, PILLAR_SCALE, PLAYER_RADIUS } from "@/config/constants";
 import {
   CELL_OPEN,
@@ -10,7 +10,7 @@ import {
   type ChunkData,
 } from "../generation/chunk";
 import { getLevelProfile } from "../generation/levelProfile";
-import { createRng } from "../generation/rng";
+import { createRng, type Rng } from "../generation/rng";
 import { FURNITURE_CATALOG, furnitureRegistry } from "./catalog";
 import { placeFurniture, type FurniturePlacement } from "./placeFurniture";
 
@@ -253,5 +253,148 @@ describe("placeFurniture", () => {
         expect(anchorsReachable(chunk, anchorCells(555, cx, 1))).toBe(true);
       }
     }
+  });
+
+  it("falls back to the last catalog entry when pickDef's roll never dips below zero", () => {
+    // Same exact-arithmetic edge case as rng.ts's pickWeighted: forcing
+    // next() === 1 makes the weighted roll land exactly on the summed total,
+    // so subtracting each candidate's weight in turn reaches exactly 0 —
+    // never `< 0` — and the safety-net return after the loop is what fires.
+    const real = createRng(1);
+    const rng: Rng = {
+      next: () => 1,
+      int: real.int,
+      range: real.range,
+      chance: real.chance,
+      pick: real.pick,
+    };
+    const placements = placeFurniture({
+      cells: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
+      anchors: [[CHUNK_SIZE >> 1, CHUNK_SIZE >> 1]],
+      rng,
+      profile: { furnitureDensity: 1, furnitureWeights: { chair: 1, table: 1 }, ceilingHeight: 5 },
+      originX: 0,
+      originZ: 0,
+    });
+    // roll === 1 also always selects the solo branch (>= 0.4), which draws
+    // via the unrestricted eligible() — the exact-fallback path above.
+    expect(placements.length).toBeGreaterThan(0);
+    expect(placements.every((p) => p.defId === "chair" || p.defId === "table")).toBe(true);
+  });
+
+  it("rolls back a whole placement group when it would disconnect an anchor", () => {
+    // Two anchors on opposite sides of a solid wall column are disconnected
+    // by the layout alone, before any furniture is placed — so the very
+    // first successful placement's post-check must detect it and roll the
+    // group back out, leaving `placements` untouched. Anchor 0 itself sits
+    // on a pillar cell so its own seed cell mixes walkable and blocked
+    // sub-samples (exercises both sides of the flood's seeding check too).
+    const cells = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE); // all CELL_OPEN
+    for (let z = 0; z < CHUNK_SIZE; z++) cells[cellIndex(8, z)] = CELL_WALL;
+    cells[cellIndex(2, 8)] = CELL_PILLAR;
+    const anchors: [number, number][] = [
+      [2, 8],
+      [13, 8],
+    ];
+
+    const placements = placeFurniture({
+      cells,
+      anchors,
+      rng: createRng(42),
+      profile: { furnitureDensity: 1, furnitureWeights: { chair: 1 }, ceilingHeight: 3 },
+      originX: 0,
+      originZ: 0,
+    });
+
+    expect(placements).toEqual([]);
+  });
+
+  it("never draws a candidate whose weight is zeroed out by a zero clusterAffinity boost", async () => {
+    // Every real catalog entry has clusterAffinity >= 1 today, so
+    // placeCluster's boosted-affinity draw can never come up empty through
+    // real content — but the field is untyped as `>= 1`, so a future entry
+    // with clusterAffinity: 0 (opt out of clustering, still placeable solo)
+    // must be handled. Mock the catalog to prove it is.
+    vi.resetModules();
+    vi.doMock("./catalog", async () => {
+      const actual = await vi.importActual<typeof import("./catalog")>("./catalog");
+      return {
+        ...actual,
+        FURNITURE_CATALOG: [{ ...actual.FURNITURE_CATALOG[0], id: "chair", clusterAffinity: 0 }],
+      };
+    });
+    const { placeFurniture: placeFurnitureMocked } = await import("./placeFurniture");
+
+    const placements = placeFurnitureMocked({
+      cells: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
+      anchors: [[CHUNK_SIZE >> 1, CHUNK_SIZE >> 1]],
+      rng: createRng(7),
+      profile: { furnitureDensity: 1, furnitureWeights: { chair: 1 }, ceilingHeight: 5 },
+      originX: 0,
+      originZ: 0,
+    });
+
+    // The only catalog entry has clusterAffinity 0, so every cluster's
+    // "extra" draw must come up empty — solo/base placements still work.
+    expect(placements.every((p) => p.defId === "chair")).toBe(true);
+
+    vi.doUnmock("./catalog");
+    vi.resetModules();
+  });
+
+  it("leaves the stack branch empty when the chosen base fails to fit anywhere", () => {
+    // A single open cell with no open neighbor can never pass corridorOk, so
+    // tryPlacePiece exhausts its 4 attempts and returns null even though a
+    // stackable def was drawn successfully.
+    const cells = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE).fill(CELL_WALL);
+    cells[cellIndex(7, 7)] = CELL_OPEN;
+    const stackableDef = FURNITURE_CATALOG.find((def) => def.stackable)!;
+    const real = createRng(3);
+    // Force the main-loop roll (and pickDef's internal roll) low enough to
+    // always take the stack branch and always draw the lone stackable def;
+    // int/range/chance/pick stay real so tryPlacePiece's geometry is sane.
+    const rng: Rng = {
+      next: () => 0.05,
+      int: real.int,
+      range: real.range,
+      chance: real.chance,
+      pick: real.pick,
+    };
+
+    const placements = placeFurniture({
+      cells,
+      anchors: [[1, 1]],
+      rng,
+      profile: {
+        furnitureDensity: 1,
+        furnitureWeights: { [stackableDef.id]: 1 },
+        ceilingHeight: 5,
+      },
+      originX: 0,
+      originZ: 0,
+    });
+
+    expect(placements).toEqual([]);
+  });
+
+  it("leaves a stack base unplaced when only non-stackable furniture is weighted", () => {
+    // roll < 0.15 draws only from stackable defs; when the active weight
+    // table has none, pickDef returns null and the stack attempt is skipped
+    // for that cell — placement continues normally on the next roll/cell.
+    const nonStackable = FURNITURE_CATALOG.find((def) => !def.stackable);
+    expect(nonStackable).toBeDefined();
+    const placements = placeFurniture({
+      cells: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
+      anchors: [[CHUNK_SIZE >> 1, CHUNK_SIZE >> 1]],
+      rng: createRng(99),
+      profile: {
+        furnitureDensity: 1,
+        furnitureWeights: { [nonStackable!.id]: 1 },
+        ceilingHeight: 5,
+      },
+      originX: 0,
+      originZ: 0,
+    });
+    expect(placements.every((p) => p.y === 0)).toBe(true);
   });
 });

@@ -155,8 +155,13 @@ const gatewayCells = (gateways: Gateways): [number, number][] => {
  * Flood-fills from the first anchor and, for every anchor left disconnected,
  * carves an L-shaped path toward the first anchor until the path touches the
  * connected region — guaranteeing all anchors are mutually reachable.
+ *
+ * Exported so its carve directions can be unit-tested directly: real
+ * generation always makes anchors[0] the westmost gateway cell (x = 0), so
+ * the walk's x-increment direction never fires through `generateChunk`
+ * alone — covered here with a synthetic anchor set instead.
  */
-const ensureConnectivity = (cells: Uint8Array, anchors: [number, number][]): void => {
+export const ensureConnectivity = (cells: Uint8Array, anchors: [number, number][]): void => {
   const region = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   const stack: number[] = [];
 
@@ -188,8 +193,15 @@ const ensureConnectivity = (cells: Uint8Array, anchors: [number, number][]): voi
     let z = az;
     while (!region[cellIndex(x, z)]) {
       cells[cellIndex(x, z)] = CELL_OPEN;
-      if (x !== targetX) x += x < targetX ? 1 : -1;
-      else if (z !== targetZ) z += z < targetZ ? 1 : -1;
+      if (x !== targetX) {
+        x += x < targetX ? 1 : -1;
+      } else {
+        // x === targetX and z === targetZ together is exactly the target
+        // cell, which is always in `region` — the while guard above would
+        // have exited before this body ever saw that state, so z !==
+        // targetZ is guaranteed once x has caught up.
+        z += z < targetZ ? 1 : -1;
+      }
     }
     flood(ax, az);
   }

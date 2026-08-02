@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NullAudioEngine } from "./AudioEngine";
 import { createFakeAudioContext, type FakeNode } from "./audioTestUtils";
 import { ProceduralAudioEngine } from "./ProceduralAudioEngine";
@@ -26,6 +26,28 @@ const ALL_AMBIENCE_IDS = [
 ] as const;
 
 describe("ProceduralAudioEngine", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("creates its own AudioContext when none is provided, and exposes it", () => {
+    const fakeContext = createFakeAudioContext();
+    const AudioContextMock = vi.fn(function (this: unknown) {
+      return fakeContext;
+    });
+    vi.stubGlobal("AudioContext", AudioContextMock);
+
+    const engine = new ProceduralAudioEngine();
+
+    expect(AudioContextMock).toHaveBeenCalledTimes(1);
+    expect(engine.context).toBe(fakeContext);
+  });
+
+  it("exposes the provided context via the context getter", () => {
+    const { context, engine } = createEngine();
+    expect(engine.context).toBe(context);
+  });
+
   it("builds an ambience graph for every ambience id", () => {
     for (const ambience of AMBIENCES) {
       const { context, engine } = createEngine();
@@ -90,13 +112,30 @@ describe("ProceduralAudioEngine", () => {
     expect(context.nodes.some((node) => node.started)).toBe(true);
   });
 
-  it("plays every entity cue variant", () => {
+  it("cleans up the wet-footstep splash transient when it ends", () => {
+    const { context, engine } = createEngine();
+    engine.playFootstep("wet", false);
+    const started = context.nodes.filter((node) => node.started);
+    // Main footstep source plus the splash transient's source.
+    expect(started.length).toBe(2);
+    for (const node of started) {
+      node.onended?.();
+      expect(node.disconnect).toHaveBeenCalled();
+    }
+  });
+
+  it("plays every entity cue variant and cleans up on end", () => {
     for (const cue of ["growl", "shriek", "chitter", "laugh"] as const) {
       const { context, engine } = createEngine();
       const before = context.nodes.length;
       engine.playEntityCue(cue);
       expect(context.nodes.length).toBeGreaterThan(before);
-      expect(context.nodes.some((node) => node.started)).toBe(true);
+      const started = context.nodes.filter((node) => node.started);
+      expect(started.length).toBeGreaterThan(0);
+      for (const node of started) {
+        node.onended?.();
+        expect(node.disconnect).toHaveBeenCalled();
+      }
     }
   });
 

@@ -36,6 +36,18 @@ describe("wishDirection", () => {
     expect(dir.x).toBeCloseTo(-1);
     expect(dir.z).toBeCloseTo(0);
   });
+
+  it("strafes left opposite of right at yaw 0", () => {
+    const left = wishDirection(input({ left: true }), 0);
+    const right = wishDirection(input({ right: true }), 0);
+    expect(left.x).toBeCloseTo(-right.x);
+    expect(left.z).toBeCloseTo(-right.z);
+    expect(Math.hypot(left.x, left.z)).toBeCloseTo(1);
+  });
+
+  it("cancels left and right together", () => {
+    expect(wishDirection(input({ left: true, right: true }), 0)).toEqual({ x: 0, z: 0 });
+  });
 });
 
 describe("stepMovement", () => {

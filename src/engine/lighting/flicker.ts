@@ -53,6 +53,9 @@ export function flickerFactor(
       const wave = (Math.sin(step * 1.4 + seed * 0.021) + 1) / 2;
       return 0.6 + 0.4 * wave * (1 - amount * 0.3);
     }
+    // Unreachable: "none" already returns above, and the switch is
+    // exhaustive over the remaining LightingMode variants.
+    /* v8 ignore next 2 */
     default:
       return 1;
   }

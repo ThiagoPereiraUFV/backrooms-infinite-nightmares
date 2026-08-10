@@ -37,7 +37,7 @@
     "@types/react-dom": "^19.2.4",
     "@types/three": "^0.185.3",
     "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.2.12",
     "jsdom": "^30",
     "prettier": "^3.9.6",
